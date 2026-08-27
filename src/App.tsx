@@ -1105,13 +1105,14 @@ export default function App() {
         <div ref={debtSectionRef}>
           <DebtSection
             debts={debts}
+            selectedMonth={selectedMonth}
             previousMonthData={previousMonthData}
-            onOpenAddDebt={(suggestedDeficit) => {
+            onOpenAddModal={(suggestedDeficit) => {
               setEditingDebt(null);
               setSuggestedDeficitForModal(suggestedDeficit || null);
               setIsDebtModalOpen(true);
             }}
-            onOpenEditDebt={(debt) => {
+            onOpenEditModal={(debt) => {
               setEditingDebt(debt);
               setSuggestedDeficitForModal(null);
               setIsDebtModalOpen(true);
