@@ -208,6 +208,63 @@ export async function saveBudgetsToFirestore(budgets: CategoryBudget[]) {
   }
 }
 
+// Bulk Overwrite Collections in Firestore (Used for Reset, Import, or Synchronizing State)
+export async function replaceAllTransactionsInFirestore(txs: Transaction[]) {
+  try {
+    const existing = await getDocs(collection(db, COLL_TRANSACTIONS));
+    const batch = writeBatch(db);
+    existing.forEach((d) => batch.delete(d.ref));
+    txs.forEach((tx) => {
+      batch.set(doc(db, COLL_TRANSACTIONS, tx.id), tx);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error('Error replacing all transactions in Firestore:', err);
+  }
+}
+
+export async function replaceAllDebtsInFirestore(debts: DebtItem[]) {
+  try {
+    const existing = await getDocs(collection(db, COLL_DEBTS));
+    const batch = writeBatch(db);
+    existing.forEach((d) => batch.delete(d.ref));
+    debts.forEach((debt) => {
+      batch.set(doc(db, COLL_DEBTS, debt.id), debt);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error('Error replacing all debts in Firestore:', err);
+  }
+}
+
+export async function replaceAllSavingsGoalsInFirestore(goals: SavingsGoal[]) {
+  try {
+    const existing = await getDocs(collection(db, COLL_SAVINGS));
+    const batch = writeBatch(db);
+    existing.forEach((d) => batch.delete(d.ref));
+    goals.forEach((goal) => {
+      batch.set(doc(db, COLL_SAVINGS, goal.id), goal);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error('Error replacing all savings in Firestore:', err);
+  }
+}
+
+export async function replaceAllRecurringBillsInFirestore(bills: RecurringBill[]) {
+  try {
+    const existing = await getDocs(collection(db, COLL_RECURRING));
+    const batch = writeBatch(db);
+    existing.forEach((d) => batch.delete(d.ref));
+    bills.forEach((bill) => {
+      batch.set(doc(db, COLL_RECURRING, bill.id), bill);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error('Error replacing all recurring bills in Firestore:', err);
+  }
+}
+
 // Bulk Sync / Seed all initial local data to Firestore if cloud is empty
 export async function syncInitialDataToCloudIfEmpty(
   localTransactions: Transaction[],
@@ -241,4 +298,21 @@ export async function syncInitialDataToCloudIfEmpty(
   } catch (err) {
     console.warn('Initial cloud seed check skipped or failed:', err);
   }
+}
+
+// Force push entire current state to Cloud Firestore
+export async function pushFullStateToCloud(
+  txs: Transaction[],
+  budgets: CategoryBudget[],
+  savings: SavingsGoal[],
+  recurring: RecurringBill[],
+  debts: DebtItem[]
+) {
+  await Promise.all([
+    replaceAllTransactionsInFirestore(txs),
+    saveBudgetsToFirestore(budgets),
+    replaceAllSavingsGoalsInFirestore(savings),
+    replaceAllRecurringBillsInFirestore(recurring),
+    replaceAllDebtsInFirestore(debts),
+  ]);
 }

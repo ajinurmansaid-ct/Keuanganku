@@ -28,6 +28,9 @@ import {
   saveDebtToFirestore,
   deleteDebtFromFirestore,
   syncInitialDataToCloudIfEmpty,
+  pushFullStateToCloud,
+  replaceAllTransactionsInFirestore,
+  replaceAllRecurringBillsInFirestore,
 } from './lib/firestoreService';
 import {
   getCurrentMonthKey,
@@ -592,25 +595,34 @@ export default function App() {
     setDebts(INITIAL_DEBTS);
     const current = getCurrentMonthKey();
     setSelectedMonth(current);
+    pushFullStateToCloud(
+      INITIAL_TRANSACTIONS,
+      DEFAULT_BUDGETS,
+      INITIAL_SAVINGS_GOALS,
+      INITIAL_RECURRING_BILLS,
+      INITIAL_DEBTS
+    );
   };
 
   const handleClearAllTransactions = () => {
     setTransactions([]);
     setSavingsGoals([]);
-    setRecurringBills((prev) => prev.map((b) => ({ ...b, paidMonths: [] })));
+    const resetBills = recurringBills.map((b) => ({ ...b, paidMonths: [] }));
+    setRecurringBills(resetBills);
     setDebts([]);
+    pushFullStateToCloud([], budgets, [], resetBills, []);
   };
 
   const handleClearCurrentMonthTransactions = () => {
-    setTransactions((prev) =>
-      prev.filter((t) => getMonthYearKey(t.date) !== selectedMonth)
-    );
-    setRecurringBills((prev) =>
-      prev.map((b) => ({
-        ...b,
-        paidMonths: (b.paidMonths || []).filter((m) => m !== selectedMonth),
-      }))
-    );
+    const remainingTxs = transactions.filter((t) => getMonthYearKey(t.date) !== selectedMonth);
+    const updatedBills = recurringBills.map((b) => ({
+      ...b,
+      paidMonths: (b.paidMonths || []).filter((m) => m !== selectedMonth),
+    }));
+    setTransactions(remainingTxs);
+    setRecurringBills(updatedBills);
+    replaceAllTransactionsInFirestore(remainingTxs);
+    replaceAllRecurringBillsInFirestore(updatedBills);
   };
 
   const handleExportJSON = () => {
@@ -647,20 +659,20 @@ export default function App() {
         const content = event.target?.result as string;
         const parsed = JSON.parse(content);
         if (parsed.transactions && Array.isArray(parsed.transactions)) {
-          setTransactions(parsed.transactions);
-          if (parsed.budgets && Array.isArray(parsed.budgets)) {
-            setBudgets(parsed.budgets);
-          }
-          if (parsed.savingsGoals && Array.isArray(parsed.savingsGoals)) {
-            setSavingsGoals(parsed.savingsGoals);
-          }
-          if (parsed.recurringBills && Array.isArray(parsed.recurringBills)) {
-            setRecurringBills(parsed.recurringBills);
-          }
-          if (parsed.debts && Array.isArray(parsed.debts)) {
-            setDebts(parsed.debts);
-          }
-          alert('Data transaksi, tabungan, pengeluaran rutin, dan hutang berhasil diimpor!');
+          const newTxs = parsed.transactions;
+          const newBudgets = (parsed.budgets && Array.isArray(parsed.budgets)) ? parsed.budgets : budgets;
+          const newSavings = (parsed.savingsGoals && Array.isArray(parsed.savingsGoals)) ? parsed.savingsGoals : savingsGoals;
+          const newBills = (parsed.recurringBills && Array.isArray(parsed.recurringBills)) ? parsed.recurringBills : recurringBills;
+          const newDebts = (parsed.debts && Array.isArray(parsed.debts)) ? parsed.debts : debts;
+
+          setTransactions(newTxs);
+          setBudgets(newBudgets);
+          setSavingsGoals(newSavings);
+          setRecurringBills(newBills);
+          setDebts(newDebts);
+
+          pushFullStateToCloud(newTxs, newBudgets, newSavings, newBills, newDebts);
+          alert('Data transaksi, tabungan, pengeluaran rutin, dan hutang berhasil diimpor & disinkronkan ke Cloud!');
         } else {
           alert('Format berkas JSON tidak valid.');
         }
@@ -1043,6 +1055,15 @@ export default function App() {
         onOpenDebtSection={scrollToDebt}
         onExportJSON={handleExportJSON}
         onImportJSON={handleImportJSON}
+        onForceSyncCloud={() =>
+          pushFullStateToCloud(
+            transactions,
+            budgets,
+            savingsGoals,
+            recurringBills,
+            debts
+          )
+        }
       />
 
       {/* Main Container */}

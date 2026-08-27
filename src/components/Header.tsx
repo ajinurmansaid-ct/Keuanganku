@@ -15,7 +15,8 @@ import {
   Repeat,
   CreditCard,
   Cloud,
-  CloudCheck
+  CloudCheck,
+  RefreshCw
 } from 'lucide-react';
 import { getMonthNameIndonesian, getUniqueMonths } from '../utils/formatters';
 import { Transaction } from '../types';
@@ -33,6 +34,7 @@ interface HeaderProps {
   onOpenDebtSection: () => void;
   onExportJSON: () => void;
   onImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onForceSyncCloud?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,9 +50,19 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDebtSection,
   onExportJSON,
   onImportJSON,
+  onForceSyncCloud,
 }) => {
   const [showDataMenu, setShowDataMenu] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const availableMonths = getUniqueMonths(transactions);
+
+  const handleSyncClick = async () => {
+    if (onForceSyncCloud) {
+      setIsSyncing(true);
+      await onForceSyncCloud();
+      setTimeout(() => setIsSyncing(false), 800);
+    }
+  };
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -68,10 +80,15 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
                     Pribadi
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 bg-sky-50 text-sky-700 rounded-full border border-sky-200" title="Data tersinkronisasi online ke Cloud Firestore">
-                    <Cloud className="w-3 h-3 text-sky-600" />
-                    <span className="hidden sm:inline">Online Sync</span>
-                  </span>
+                  <button
+                    onClick={handleSyncClick}
+                    type="button"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-full border border-sky-200 transition cursor-pointer"
+                    title="Klik untuk menyinkronkan seluruh data ke Cloud Firestore"
+                  >
+                    <Cloud className={`w-3 h-3 text-sky-600 ${isSyncing ? 'animate-bounce' : ''}`} />
+                    <span className="hidden sm:inline">{isSyncing ? 'Menyinkronkan...' : 'Online Sync'}</span>
+                  </button>
                 </h1>
                 <p className="text-xs text-slate-500 hidden sm:block">
                   Kelola pengeluaran, pantau grafik bulanan, & optimalkan anggaran
@@ -189,6 +206,19 @@ export const Header: React.FC<HeaderProps> = ({
                   className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-sm animate-in fade-in zoom-in-95 duration-100"
                   onMouseLeave={() => setShowDataMenu(false)}
                 >
+                  <button
+                    onClick={() => {
+                      handleSyncClick();
+                      setShowDataMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-sky-50 flex items-center gap-2 text-sky-700 font-medium"
+                  >
+                    <RefreshCw className={`w-4 h-4 text-sky-600 ${isSyncing ? 'animate-spin' : ''}`} />
+                    Sinkronkan ke Cloud
+                  </button>
+
+                  <div className="border-t border-slate-100 my-1"></div>
+
                   <button
                     onClick={() => {
                       onExportJSON();
