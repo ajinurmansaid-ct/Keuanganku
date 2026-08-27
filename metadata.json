@@ -1,0 +1,6 @@
+{
+  "name": "Pencatat Keuangan Pribadi",
+  "description": "Aplikasi pencatat keuangan pribadi lengkap dengan grafik pengeluaran bulanan, pengeluaran rutin & tagihan wajib bulanan (BPJS, paketan, kas, dll), celengan tabungan target, penganggaran kategori, dan analisis AI cerdas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

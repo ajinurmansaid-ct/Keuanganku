@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded rectangle -->
+  <rect width="192" height="192" rx="42" fill="url(#bgGrad)" />
+
+  <!-- Inner border highlight -->
+  <rect x="2" y="2" width="188" height="188" rx="40" fill="none" stroke="#34D399" stroke-width="2" stroke-opacity="0.4" />
+
+  <!-- Main Wallet / Financial Card Graphic -->
+  <g filter="url(#shadow)" transform="translate(32, 38)">
+    <!-- Wallet Body -->
+    <rect x="0" y="26" width="128" height="84" rx="18" fill="#FFFFFF" />
+    
+    <!-- Wallet Flap Accent -->
+    <path d="M0,44 C0,34 8,26 18,26 L110,26 C120,26 128,34 128,44 L128,52 L0,52 Z" fill="#E2E8F0" />
+    
+    <!-- Wallet Clasp / Badge -->
+    <rect x="86" y="54" width="42" height="28" rx="8" fill="#047857" />
+    <circle cx="100" cy="68" r="4.5" fill="#FCD34D" />
+
+    <!-- Coin Rising from Top -->
+    <g transform="translate(38, -12)">
+      <circle cx="26" cy="26" r="24" fill="url(#coinGrad)" stroke="#B45309" stroke-width="2" />
+      <circle cx="26" cy="26" r="18" fill="none" stroke="#FEF3C7" stroke-width="1.5" stroke-dasharray="3,2" />
+      <!-- Currency Rp symbol -->
+      <text x="26" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="900" fill="#78350F" text-anchor="middle">Rp</text>
+    </g>
+
+    <!-- Upward Trend Arrow -->
+    <path d="M22,86 L44,64 L58,74 L82,48" fill="none" stroke="#10B981" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="72,48 82,48 82,58" fill="none" stroke="#10B981" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

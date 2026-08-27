@@ -1,0 +1,67 @@
+{
+  "schema": {
+    "entities": {
+      "transactions": {
+        "fields": {
+          "id": { "type": "string", "description": "Unique transaction ID" },
+          "title": { "type": "string", "description": "Title of transaction" },
+          "amount": { "type": "number", "description": "Amount in Rupiah" },
+          "type": { "type": "string", "description": "income or expense" },
+          "categoryId": { "type": "string", "description": "Category ID" },
+          "paymentMethod": { "type": "string", "description": "Payment method" },
+          "date": { "type": "string", "description": "Date YYYY-MM-DD" },
+          "notes": { "type": "string", "description": "Optional notes" },
+          "createdAt": { "type": "number", "description": "Timestamp" }
+        }
+      },
+      "debts": {
+        "fields": {
+          "id": { "type": "string", "description": "Unique debt ID" },
+          "title": { "type": "string", "description": "Debt title" },
+          "creditor": { "type": "string", "description": "Creditor or source" },
+          "totalAmount": { "type": "number", "description": "Original debt amount" },
+          "remainingAmount": { "type": "number", "description": "Remaining unpaid amount" },
+          "dueDate": { "type": "string", "description": "Target due date YYYY-MM-DD" },
+          "status": { "type": "string", "description": "unpaid, partial, or paid" },
+          "isFromMonthlyDeficit": { "type": "boolean", "description": "Whether from previous month deficit" },
+          "deficitMonth": { "type": "string", "description": "Month of deficit YYYY-MM" },
+          "notes": { "type": "string", "description": "Notes" },
+          "paymentMethod": { "type": "string", "description": "Default payment method" },
+          "history": { "type": "array", "description": "Payment logs" },
+          "createdAt": { "type": "number", "description": "Timestamp" }
+        }
+      },
+      "savingsGoals": {
+        "fields": {
+          "id": { "type": "string", "description": "Goal ID" },
+          "name": { "type": "string", "description": "Goal name" },
+          "targetAmount": { "type": "number", "description": "Target amount" },
+          "currentAmount": { "type": "number", "description": "Current saved amount" },
+          "color": { "type": "string", "description": "Color hex" },
+          "icon": { "type": "string", "description": "Icon name" },
+          "targetDate": { "type": "string", "description": "Target date" },
+          "history": { "type": "array", "description": "Deposit history" },
+          "createdAt": { "type": "number", "description": "Timestamp" }
+        }
+      },
+      "recurringBills": {
+        "fields": {
+          "id": { "type": "string", "description": "Bill ID" },
+          "name": { "type": "string", "description": "Bill name" },
+          "amount": { "type": "number", "description": "Amount in Rupiah" },
+          "categoryId": { "type": "string", "description": "Category ID" },
+          "dueDay": { "type": "number", "description": "Day of the month" },
+          "paymentMethod": { "type": "string", "description": "Payment method" },
+          "paidMonths": { "type": "array", "description": "Paid month keys" },
+          "createdAt": { "type": "number", "description": "Timestamp" }
+        }
+      },
+      "budgets": {
+        "fields": {
+          "categoryId": { "type": "string", "description": "Category ID" },
+          "budget": { "type": "number", "description": "Monthly budget" }
+        }
+      }
+    }
+  }
+}
