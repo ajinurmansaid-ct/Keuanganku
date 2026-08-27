@@ -34,7 +34,7 @@ import {
   formatDateIndonesian,
   getMonthYearKey
 } from '../utils/formatters';
-import { Transaction, TransactionType } from '../types';
+import { Transaction, TransactionType, UserProfile, ActiveViewMode, UserProfileId } from '../types';
 import { ALL_CATEGORIES } from '../data/categories';
 
 interface TransactionListProps {
@@ -45,6 +45,8 @@ interface TransactionListProps {
   onDuplicate: (tx: Transaction) => void;
   onOpenAddModal: () => void;
   onOpenResetModal?: () => void;
+  profiles?: UserProfile[];
+  activeViewMode?: ActiveViewMode;
 }
 
 export const TransactionList: React.FC<TransactionListProps> = ({
@@ -55,10 +57,16 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onDuplicate,
   onOpenAddModal,
   onOpenResetModal,
+  profiles = [],
+  activeViewMode = 'user_1',
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<'all' | UserProfileId>('all');
+
+  const p1 = profiles.find((p) => p.id === 'user_1') || profiles[0];
+  const p2 = profiles.find((p) => p.id === 'user_2') || profiles[1];
 
   // Helper icon map
   const getCategoryIcon = (iconName: string) => {
@@ -97,6 +105,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         return false;
       }
 
+      // User / Profile match
+      if (userFilter !== 'all') {
+        const txProfile = tx.profileId || 'user_1';
+        if (txProfile !== userFilter) {
+          return false;
+        }
+      }
+
       // Type match
       if (filterType !== 'all' && tx.type !== filterType) {
         return false;
@@ -117,7 +133,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, selectedMonth, filterType, selectedCategory, searchTerm]);
+  }, [transactions, selectedMonth, userFilter, filterType, selectedCategory, searchTerm]);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-5 md:p-6">
@@ -146,39 +162,78 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       </div>
 
       {/* Filter Chips Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-5 pb-4 border-b border-slate-100 text-xs">
-        {/* Type Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
-          <button
-            onClick={() => setFilterType('all')}
-            className={`px-3 py-1 rounded-md transition font-medium ${
-              filterType === 'all'
-                ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Semua
-          </button>
-          <button
-            onClick={() => setFilterType('expense')}
-            className={`px-3 py-1 rounded-md transition font-medium ${
-              filterType === 'expense'
-                ? 'bg-rose-600 text-white shadow-2xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Pengeluaran
-          </button>
-          <button
-            onClick={() => setFilterType('income')}
-            className={`px-3 py-1 rounded-md transition font-medium ${
-              filterType === 'income'
-                ? 'bg-emerald-600 text-white shadow-2xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Pemasukan
-          </button>
+      <div className="flex flex-wrap items-center justify-between gap-2.5 mb-5 pb-4 border-b border-slate-100 text-xs">
+        {/* Type & User Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Type Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-3 py-1 rounded-md transition font-medium cursor-pointer ${
+                filterType === 'all'
+                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Semua
+            </button>
+            <button
+              onClick={() => setFilterType('expense')}
+              className={`px-3 py-1 rounded-md transition font-medium cursor-pointer ${
+                filterType === 'expense'
+                  ? 'bg-rose-600 text-white shadow-2xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Pengeluaran
+            </button>
+            <button
+              onClick={() => setFilterType('income')}
+              className={`px-3 py-1 rounded-md transition font-medium cursor-pointer ${
+                filterType === 'income'
+                  ? 'bg-emerald-600 text-white shadow-2xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Pemasukan
+            </button>
+          </div>
+
+          {/* User Profile Filter (Visible in Combined view or when both have transactions) */}
+          {activeViewMode === 'combined' && (
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => setUserFilter('all')}
+                className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                  userFilter === 'all'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Kedua Orang
+              </button>
+              <button
+                onClick={() => setUserFilter('user_1')}
+                className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                  userFilter === 'user_1'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 font-semibold shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {p1?.name || 'Orang 1'}
+              </button>
+              <button
+                onClick={() => setUserFilter('user_2')}
+                className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                  userFilter === 'user_2'
+                    ? 'bg-violet-50 text-violet-800 border border-violet-300 font-semibold shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {p2?.name || 'Orang 2'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Category Select Filter */}
@@ -227,6 +282,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           {filteredTransactions.map((tx) => {
             const cat = ALL_CATEGORIES.find((c) => c.id === tx.categoryId);
             const isExpense = tx.type === 'expense';
+            const isUser2 = tx.profileId === 'user_2';
+            const ownerName = isUser2 ? (p2?.name || 'Orang 2') : (p1?.name || 'Orang 1');
 
             return (
               <div
@@ -249,6 +306,16 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                       </span>
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                         {cat?.name || 'Lainnya'}
+                      </span>
+                      {/* Owner badge */}
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          isUser2
+                            ? 'bg-violet-50 text-violet-700 border-violet-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
+                        {ownerName}
                       </span>
                     </div>
 

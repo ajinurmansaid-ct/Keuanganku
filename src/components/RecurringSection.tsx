@@ -20,7 +20,7 @@ import {
   Sparkles,
   ArrowUpRight
 } from 'lucide-react';
-import { RecurringBill, Transaction, PaymentMethod } from '../types';
+import { RecurringBill, Transaction, PaymentMethod, UserProfile, ActiveViewMode } from '../types';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../data/categories';
 import {
   formatRupiah,
@@ -39,6 +39,8 @@ interface RecurringSectionProps {
   onUnpayBill: (bill: RecurringBill) => void;
   onPayAllPending: () => void;
   onToggleActive: (id: string, active: boolean) => void;
+  profiles?: UserProfile[];
+  activeViewMode?: ActiveViewMode;
 }
 
 export const RecurringSection: React.FC<RecurringSectionProps> = ({
@@ -51,11 +53,16 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({
   onUnpayBill,
   onPayAllPending,
   onToggleActive,
+  profiles = [],
+  activeViewMode = 'user_1',
 }) => {
   const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [billToDelete, setBillToDelete] = useState<RecurringBill | null>(null);
   const [showBatchConfirm, setShowBatchConfirm] = useState(false);
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
 
   const activeBills = recurringBills.filter((b) => b.isActive);
 
@@ -394,9 +401,24 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({
                             )}
                           </div>
                           <div className="min-w-0">
-                            <h4 className="text-sm font-bold text-slate-900 truncate">
-                              {bill.title}
-                            </h4>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="text-sm font-bold text-slate-900 truncate">
+                                {bill.title}
+                              </h4>
+                              {activeViewMode === 'combined' && (
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                                    (bill.profileId || 'user_1') === 'user_1'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-violet-50 text-violet-700 border-violet-200'
+                                  }`}
+                                >
+                                  {(bill.profileId || 'user_1') === 'user_1'
+                                    ? profile1?.name || 'Orang 1'
+                                    : profile2?.name || 'Orang 2'}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-slate-500 mt-0.5">
                               <span className="font-medium text-slate-700">
                                 {cat.name}

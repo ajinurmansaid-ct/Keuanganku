@@ -6,13 +6,19 @@ import {
   SavingsGoal,
   RecurringBill,
   DebtItem,
-  PaymentMethod
+  PaymentMethod,
+  UserProfile,
+  UserProfileId,
+  ActiveViewMode
 } from './types';
 import { INITIAL_TRANSACTIONS, DEFAULT_BUDGETS } from './data/sampleTransactions';
 import { INITIAL_SAVINGS_GOALS } from './data/sampleSavings';
 import { INITIAL_RECURRING_BILLS } from './data/sampleRecurringBills';
 import { INITIAL_DEBTS } from './data/sampleDebts';
+import { DEFAULT_PROFILES } from './data/sampleProfiles';
 import {
+  subscribeToProfiles,
+  saveProfilesToFirestore,
   subscribeToTransactions,
   saveTransactionToFirestore,
   deleteTransactionFromFirestore,
@@ -40,6 +46,8 @@ import {
 } from './utils/formatters';
 import { Header } from './components/Header';
 import { DashboardSummary } from './components/DashboardSummary';
+import { CombinedOverviewSection } from './components/CombinedOverviewSection';
+import { ProfileSettingsModal } from './components/ProfileSettingsModal';
 import { ChartsSection } from './components/ChartsSection';
 import { TransactionList } from './components/TransactionList';
 import { SavingsSection } from './components/SavingsSection';
@@ -58,6 +66,8 @@ import { AIAdviceModal } from './components/AIAdviceModal';
 import { ResetDataModal } from './components/ResetDataModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
+const STORAGE_KEY_PROFILES = 'pencatat_keuangan_profiles_v1';
+const STORAGE_KEY_ACTIVE_VIEW = 'pencatat_keuangan_active_view_v1';
 const STORAGE_KEY_TX = 'pencatat_keuangan_tx_v1';
 const STORAGE_KEY_BUDGETS = 'pencatat_keuangan_budgets_v1';
 const STORAGE_KEY_SAVINGS = 'pencatat_keuangan_savings_v1';
@@ -68,6 +78,34 @@ export default function App() {
   const savingsSectionRef = useRef<HTMLDivElement>(null);
   const recurringSectionRef = useRef<HTMLDivElement>(null);
   const debtSectionRef = useRef<HTMLDivElement>(null);
+
+  // Profile Management State
+  const [profiles, setProfiles] = useState<UserProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_PROFILES);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 2) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse profiles from localStorage', e);
+    }
+    return DEFAULT_PROFILES;
+  });
+
+  const [activeViewMode, setActiveViewMode] = useState<ActiveViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_ACTIVE_VIEW) as ActiveViewMode;
+      if (saved === 'user_1' || saved === 'user_2' || saved === 'combined') {
+        return saved;
+      }
+    } catch (e) {
+      // fallback
+    }
+    return 'user_1';
+  });
+
+  const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
 
   // Load initial state from LocalStorage or fallback to sample data
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
@@ -185,8 +223,9 @@ export default function App() {
 
   // Real-time Firestore Cloud Synchronization
   useEffect(() => {
-    // 1. Initial check: If cloud database is empty, seed current sample data
+    // 1. Initial check: If cloud database is empty, seed current sample data with profiles
     syncInitialDataToCloudIfEmpty(
+      profiles,
       transactions,
       budgets,
       savingsGoals,
@@ -195,6 +234,12 @@ export default function App() {
     );
 
     // 2. Real-time Listeners
+    const unsubProfiles = subscribeToProfiles((cloudProfiles) => {
+      if (cloudProfiles.length >= 2) {
+        setProfiles(cloudProfiles);
+      }
+    });
+
     const unsubTx = subscribeToTransactions((cloudTxs) => {
       if (cloudTxs.length > 0) {
         setTransactions(cloudTxs);
@@ -226,6 +271,7 @@ export default function App() {
     });
 
     return () => {
+      unsubProfiles();
       unsubTx();
       unsubBudgets();
       unsubSavings();
@@ -233,6 +279,23 @@ export default function App() {
       unsubDebts();
     };
   }, []);
+
+  // Sync state to LocalStorage for offline fallback resilience
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(profiles));
+    } catch (e) {
+      console.error('Failed to save profiles to localStorage', e);
+    }
+  }, [profiles]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_ACTIVE_VIEW, activeViewMode);
+    } catch (e) {
+      console.error('Failed to save activeViewMode to localStorage', e);
+    }
+  }, [activeViewMode]);
 
   // Sync state to LocalStorage for offline fallback resilience
   useEffect(() => {
@@ -290,12 +353,9 @@ export default function App() {
     }
   }, []);
 
-  // Compute Summary Metrics for Selected Month
-  const summary = useMemo<FinancialSummary>(() => {
-    const monthTx = transactions.filter(
-      (t) => getMonthYearKey(t.date) === selectedMonth
-    );
-
+  // Compute Summary Metrics for User 1, User 2, and Combined
+  const computeSummaryForTransactions = (txList: Transaction[], monthKey: string): FinancialSummary => {
+    const monthTx = txList.filter((t) => getMonthYearKey(t.date) === monthKey);
     const totalIncome = monthTx
       .filter((t) => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -311,8 +371,7 @@ export default function App() {
       savingsRate = Math.max(0, Math.round((balance / totalIncome) * 100));
     }
 
-    // Days in selected month
-    const [yearStr, monthStr] = selectedMonth.split('-');
+    const [yearStr, monthStr] = monthKey.split('-');
     const daysInMonth = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
     const dailyAverageExpense = Math.round(totalExpense / daysInMonth);
 
@@ -324,7 +383,93 @@ export default function App() {
       dailyAverageExpense,
       transactionCount: monthTx.length,
     };
-  }, [transactions, selectedMonth]);
+  };
+
+  const txsUser1 = useMemo(
+    () => transactions.filter((t) => (t.profileId || 'user_1') === 'user_1'),
+    [transactions]
+  );
+  const txsUser2 = useMemo(
+    () => transactions.filter((t) => (t.profileId || 'user_1') === 'user_2'),
+    [transactions]
+  );
+
+  const summaryUser1 = useMemo(
+    () => computeSummaryForTransactions(txsUser1, selectedMonth),
+    [txsUser1, selectedMonth]
+  );
+  const summaryUser2 = useMemo(
+    () => computeSummaryForTransactions(txsUser2, selectedMonth),
+    [txsUser2, selectedMonth]
+  );
+  const summaryCombined = useMemo(
+    () => computeSummaryForTransactions(transactions, selectedMonth),
+    [transactions, selectedMonth]
+  );
+
+  // Active view summary
+  const summary = useMemo<FinancialSummary>(() => {
+    if (activeViewMode === 'user_1') return summaryUser1;
+    if (activeViewMode === 'user_2') return summaryUser2;
+    return summaryCombined;
+  }, [activeViewMode, summaryUser1, summaryUser2, summaryCombined]);
+
+  // Overall savings & debt stats for both profiles
+  const savingsUser1 = useMemo(
+    () =>
+      savingsGoals
+        .filter((s) => (s.profileId || 'user_1') === 'user_1')
+        .reduce((sum, s) => sum + s.currentAmount, 0),
+    [savingsGoals]
+  );
+  const savingsUser2 = useMemo(
+    () =>
+      savingsGoals
+        .filter((s) => (s.profileId || 'user_1') === 'user_2')
+        .reduce((sum, s) => sum + s.currentAmount, 0),
+    [savingsGoals]
+  );
+
+  const debtsUser1 = useMemo(
+    () =>
+      debts
+        .filter((d) => (d.profileId || 'user_1') === 'user_1')
+        .reduce((sum, d) => sum + d.remainingAmount, 0),
+    [debts]
+  );
+  const debtsUser2 = useMemo(
+    () =>
+      debts
+        .filter((d) => (d.profileId || 'user_1') === 'user_2')
+        .reduce((sum, d) => sum + d.remainingAmount, 0),
+    [debts]
+  );
+
+  // Display filtered datasets based on activeViewMode
+  const displayTransactions = useMemo(() => {
+    if (activeViewMode === 'combined') return transactions;
+    return transactions.filter((t) => (t.profileId || 'user_1') === activeViewMode);
+  }, [transactions, activeViewMode]);
+
+  const displayBudgets = useMemo(() => {
+    if (activeViewMode === 'combined') return budgets;
+    return budgets.filter((b) => (b.profileId || 'user_1') === activeViewMode);
+  }, [budgets, activeViewMode]);
+
+  const displaySavingsGoals = useMemo(() => {
+    if (activeViewMode === 'combined') return savingsGoals;
+    return savingsGoals.filter((s) => (s.profileId || 'user_1') === activeViewMode);
+  }, [savingsGoals, activeViewMode]);
+
+  const displayRecurringBills = useMemo(() => {
+    if (activeViewMode === 'combined') return recurringBills;
+    return recurringBills.filter((r) => (r.profileId || 'user_1') === activeViewMode);
+  }, [recurringBills, activeViewMode]);
+
+  const displayDebts = useMemo(() => {
+    if (activeViewMode === 'combined') return debts;
+    return debts.filter((d) => (d.profileId || 'user_1') === activeViewMode);
+  }, [debts, activeViewMode]);
 
   // Compute Previous Month's Financial Performance (to detect deficit/minus)
   const previousMonthData = useMemo(() => {
@@ -335,7 +480,7 @@ export default function App() {
     const prevDate = new Date(year, month - 2, 1);
     const prevMonthKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    const prevTx = transactions.filter(
+    const prevTx = displayTransactions.filter(
       (t) => getMonthYearKey(t.date) === prevMonthKey
     );
     if (prevTx.length === 0) return null;
@@ -361,17 +506,25 @@ export default function App() {
         transactionCount: prevTx.length,
       },
     };
-  }, [transactions, selectedMonth]);
+  }, [displayTransactions, selectedMonth]);
+
+  // Handlers for Profiles
+  const handleSaveProfiles = (updatedProfiles: UserProfile[]) => {
+    setProfiles(updatedProfiles);
+    saveProfilesToFirestore(updatedProfiles);
+  };
 
   // Handlers for Transactions
   const handleSaveTransaction = (
     txData: Omit<Transaction, 'id' | 'createdAt'>,
     editingId?: string
   ) => {
+    const defaultProfile: UserProfileId = activeViewMode === 'user_2' ? 'user_2' : 'user_1';
     if (editingId) {
       const existing = transactions.find((t) => t.id === editingId);
       const updatedTx: Transaction = {
         ...txData,
+        profileId: txData.profileId || existing?.profileId || defaultProfile,
         id: editingId,
         createdAt: existing?.createdAt || Date.now(),
       };
@@ -382,6 +535,7 @@ export default function App() {
     } else {
       const newTx: Transaction = {
         ...txData,
+        profileId: txData.profileId || defaultProfile,
         id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         createdAt: Date.now(),
       };
@@ -413,6 +567,7 @@ export default function App() {
   const handleSaveSavingsGoal = (
     goalData: Omit<SavingsGoal, 'id' | 'createdAt' | 'history'> & { initialDeposit?: number; id?: string }
   ) => {
+    const targetProfileId = goalData.profileId || (activeViewMode === 'user_2' ? 'user_2' : 'user_1');
     if (goalData.id) {
       const existing = savingsGoals.find((g) => g.id === goalData.id);
       const updatedGoal: SavingsGoal = {
@@ -425,6 +580,7 @@ export default function App() {
         color: goalData.color,
         icon: goalData.icon,
         notes: goalData.notes,
+        profileId: targetProfileId,
         createdAt: existing?.createdAt || Date.now(),
         history: existing?.history || [],
       };
@@ -458,6 +614,7 @@ export default function App() {
         color: goalData.color,
         icon: goalData.icon,
         notes: goalData.notes,
+        profileId: targetProfileId,
         createdAt: Date.now(),
         history: initialHistory,
       };
@@ -531,6 +688,7 @@ export default function App() {
         date,
         paymentMethod,
         notes: note ? `[Tabungan] ${note}` : `[Tabungan] Mutasi pos ${goalTitle}`,
+        profileId: targetGoal?.profileId || (activeViewMode === 'user_2' ? 'user_2' : 'user_1'),
         createdAt: Date.now(),
       };
 
@@ -588,6 +746,7 @@ export default function App() {
   };
 
   const handleResetSampleData = () => {
+    setProfiles(DEFAULT_PROFILES);
     setTransactions(INITIAL_TRANSACTIONS);
     setBudgets(DEFAULT_BUDGETS);
     setSavingsGoals(INITIAL_SAVINGS_GOALS);
@@ -596,6 +755,7 @@ export default function App() {
     const current = getCurrentMonthKey();
     setSelectedMonth(current);
     pushFullStateToCloud(
+      DEFAULT_PROFILES,
       INITIAL_TRANSACTIONS,
       DEFAULT_BUDGETS,
       INITIAL_SAVINGS_GOALS,
@@ -610,7 +770,7 @@ export default function App() {
     const resetBills = recurringBills.map((b) => ({ ...b, paidMonths: [] }));
     setRecurringBills(resetBills);
     setDebts([]);
-    pushFullStateToCloud([], budgets, [], resetBills, []);
+    pushFullStateToCloud(profiles, [], budgets, [], resetBills, []);
   };
 
   const handleClearCurrentMonthTransactions = () => {
@@ -628,8 +788,9 @@ export default function App() {
   const handleExportJSON = () => {
     const dataStr = JSON.stringify(
       {
-        app: 'Pencatat Keuangan Pribadi',
+        app: 'Pencatat Keuangan Pribadi (Multi-User)',
         exportDate: new Date().toISOString(),
+        profiles,
         transactions,
         budgets,
         savingsGoals,
@@ -659,20 +820,22 @@ export default function App() {
         const content = event.target?.result as string;
         const parsed = JSON.parse(content);
         if (parsed.transactions && Array.isArray(parsed.transactions)) {
+          const newProfiles = (parsed.profiles && Array.isArray(parsed.profiles)) ? parsed.profiles : profiles;
           const newTxs = parsed.transactions;
           const newBudgets = (parsed.budgets && Array.isArray(parsed.budgets)) ? parsed.budgets : budgets;
           const newSavings = (parsed.savingsGoals && Array.isArray(parsed.savingsGoals)) ? parsed.savingsGoals : savingsGoals;
           const newBills = (parsed.recurringBills && Array.isArray(parsed.recurringBills)) ? parsed.recurringBills : recurringBills;
           const newDebts = (parsed.debts && Array.isArray(parsed.debts)) ? parsed.debts : debts;
 
+          setProfiles(newProfiles);
           setTransactions(newTxs);
           setBudgets(newBudgets);
           setSavingsGoals(newSavings);
           setRecurringBills(newBills);
           setDebts(newDebts);
 
-          pushFullStateToCloud(newTxs, newBudgets, newSavings, newBills, newDebts);
-          alert('Data transaksi, tabungan, pengeluaran rutin, dan hutang berhasil diimpor & disinkronkan ke Cloud!');
+          pushFullStateToCloud(newProfiles, newTxs, newBudgets, newSavings, newBills, newDebts);
+          alert('Data 2 profil, transaksi, tabungan, pengeluaran rutin, dan hutang berhasil diimpor & disinkronkan ke Cloud!');
         } else {
           alert('Format berkas JSON tidak valid.');
         }
@@ -688,6 +851,7 @@ export default function App() {
     debtData: Omit<DebtItem, 'id' | 'createdAt' | 'history' | 'status' | 'remainingAmount'>,
     editingId?: string
   ) => {
+    const targetProfileId = debtData.profileId || (activeViewMode === 'user_2' ? 'user_2' : 'user_1');
     if (editingId) {
       let updatedDebtForCloud: DebtItem | null = null;
       setDebts((prev) =>
@@ -706,6 +870,7 @@ export default function App() {
             const updated: DebtItem = {
               ...d,
               ...debtData,
+              profileId: targetProfileId,
               remainingAmount: newRemaining,
               status: newStatus,
             };
@@ -722,6 +887,7 @@ export default function App() {
       const newDebt: DebtItem = {
         ...debtData,
         id: `debt_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        profileId: targetProfileId,
         remainingAmount: debtData.totalAmount,
         status: 'unpaid',
         history: [],
@@ -796,6 +962,7 @@ export default function App() {
         paymentMethod,
         date,
         notes: notes || `Pelunasan hutang (${targetDebt.creditor})`,
+        profileId: targetDebt.profileId || (activeViewMode === 'user_2' ? 'user_2' : 'user_1'),
         createdAt: Date.now(),
       };
       setTransactions((prev) => [newTx, ...prev]);
@@ -842,11 +1009,13 @@ export default function App() {
     billData: Omit<RecurringBill, 'id' | 'createdAt' | 'paidMonths'>,
     editingId?: string
   ) => {
+    const targetProfileId = billData.profileId || (activeViewMode === 'user_2' ? 'user_2' : 'user_1');
     if (editingId) {
       const existing = recurringBills.find((b) => b.id === editingId);
       const updatedBill: RecurringBill = {
         ...billData,
         id: editingId,
+        profileId: targetProfileId,
         paidMonths: existing?.paidMonths || [],
         createdAt: existing?.createdAt || Date.now(),
       };
@@ -858,6 +1027,7 @@ export default function App() {
       const newBill: RecurringBill = {
         ...billData,
         id: `rec_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        profileId: targetProfileId,
         paidMonths: [],
         createdAt: Date.now(),
       };
@@ -911,6 +1081,7 @@ export default function App() {
       paymentMethod: bill.paymentMethod,
       date: txDate,
       notes: bill.notes ? `Tagihan rutin: ${bill.notes}` : 'Tagihan bulanan rutin',
+      profileId: bill.profileId || (activeViewMode === 'user_2' ? 'user_2' : 'user_1'),
       createdAt: Date.now(),
     };
 
@@ -992,6 +1163,7 @@ export default function App() {
         paymentMethod: bill.paymentMethod,
         date: txDate,
         notes: bill.notes ? `Tagihan rutin: ${bill.notes}` : 'Tagihan bulanan rutin',
+        profileId: bill.profileId || (activeViewMode === 'user_2' ? 'user_2' : 'user_1'),
         createdAt: Date.now() + index,
       };
 
@@ -1057,6 +1229,7 @@ export default function App() {
         onImportJSON={handleImportJSON}
         onForceSyncCloud={() =>
           pushFullStateToCloud(
+            profiles,
             transactions,
             budgets,
             savingsGoals,
@@ -1064,17 +1237,36 @@ export default function App() {
             debts
           )
         }
+        profiles={profiles}
+        activeViewMode={activeViewMode}
+        onSelectViewMode={setActiveViewMode}
+        onOpenProfileSettings={() => setIsProfileSettingsOpen(true)}
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* KPI Dashboard Summary */}
-        <DashboardSummary summary={summary} selectedMonth={selectedMonth} />
+        {/* KPI Dashboard Summary or Dual Profile Combined Overview */}
+        {activeViewMode === 'combined' ? (
+          <CombinedOverviewSection
+            selectedMonth={selectedMonth}
+            profiles={profiles}
+            summary1={summaryUser1}
+            summary2={summaryUser2}
+            combinedSummary={summaryCombined}
+            totalSavings1={savingsUser1}
+            totalSavings2={savingsUser2}
+            totalDebts1={debtsUser1}
+            totalDebts2={debtsUser2}
+            onSwitchProfile={(mode) => setActiveViewMode(mode)}
+          />
+        ) : (
+          <DashboardSummary summary={summary} selectedMonth={selectedMonth} />
+        )}
 
         {/* Informative Monthly Expense Charts */}
         <ChartsSection
-          transactions={transactions}
-          budgets={budgets}
+          transactions={displayTransactions}
+          budgets={displayBudgets}
           selectedMonth={selectedMonth}
           onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
           onOpenAIModal={() => setIsAIModalOpen(true)}
@@ -1083,8 +1275,10 @@ export default function App() {
         {/* Feature: Pengeluaran Rutin & Tagihan Bulanan (BPJS, Paket Data, Uang Kas, dll) */}
         <div ref={recurringSectionRef}>
           <RecurringSection
-            recurringBills={recurringBills}
+            recurringBills={displayRecurringBills}
             selectedMonth={selectedMonth}
+            profiles={profiles}
+            activeViewMode={activeViewMode}
             onOpenAddModal={() => {
               setEditingRecurringBill(null);
               setIsRecurringModalOpen(true);
@@ -1104,9 +1298,11 @@ export default function App() {
         {/* Feature: Hutang & Talangan Defisit Bulan Sebelumnya */}
         <div ref={debtSectionRef}>
           <DebtSection
-            debts={debts}
+            debts={displayDebts}
             selectedMonth={selectedMonth}
             previousMonthData={previousMonthData}
+            profiles={profiles}
+            activeViewMode={activeViewMode}
             onOpenAddModal={(suggestedDeficit) => {
               setEditingDebt(null);
               setSuggestedDeficitForModal(suggestedDeficit || null);
@@ -1132,7 +1328,9 @@ export default function App() {
         {/* Feature: Pencatat Tabungan & Celengan Target */}
         <div ref={savingsSectionRef}>
           <SavingsSection
-            savingsGoals={savingsGoals}
+            savingsGoals={displaySavingsGoals}
+            profiles={profiles}
+            activeViewMode={activeViewMode}
             onOpenAddGoal={() => {
               setEditingSavingsGoal(null);
               setIsSavingsGoalModalOpen(true);
@@ -1156,8 +1354,10 @@ export default function App() {
 
         {/* Transaction History & Manager */}
         <TransactionList
-          transactions={transactions}
+          transactions={displayTransactions}
           selectedMonth={selectedMonth}
+          profiles={profiles}
+          activeViewMode={activeViewMode}
           onEdit={(tx) => {
             setEditingTransaction(tx);
             setIsAddModalOpen(true);
@@ -1175,7 +1375,7 @@ export default function App() {
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>© 2026 Pencatat Keuangan Pribadi. Seluruh data tersimpan aman di browser Anda.</p>
+          <p>© 2026 Pencatat Keuangan Pribadi (Multi-User). Seluruh data tersimpan aman di browser & cloud Anda.</p>
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsResetModalOpen(true)}
@@ -1202,6 +1402,8 @@ export default function App() {
         onSave={handleSaveTransaction}
         initialData={editingTransaction}
         defaultMonth={selectedMonth}
+        profiles={profiles}
+        activeProfileId={activeViewMode === 'user_2' ? 'user_2' : 'user_1'}
       />
 
       <BudgetManagerModal
@@ -1214,14 +1416,16 @@ export default function App() {
         }}
         selectedMonth={selectedMonth}
         transactions={transactions}
+        profiles={profiles}
+        activeProfileId={activeViewMode === 'user_2' ? 'user_2' : 'user_1'}
       />
 
       <AIAdviceModal
         isOpen={isAIModalOpen}
         onClose={() => setIsAIModalOpen(false)}
         summary={summary}
-        transactions={transactions}
-        budgets={budgets}
+        transactions={displayTransactions}
+        budgets={displayBudgets}
         selectedMonth={selectedMonth}
       />
 
@@ -1248,6 +1452,8 @@ export default function App() {
         }}
         onSave={handleSaveRecurringBill}
         initialData={editingRecurringBill}
+        profiles={profiles}
+        activeProfileId={activeViewMode === 'user_2' ? 'user_2' : 'user_1'}
       />
 
       {/* Debt Modals */}
@@ -1261,6 +1467,8 @@ export default function App() {
         onSave={handleSaveDebt}
         initialData={editingDebt}
         suggestedDeficit={suggestedDeficitForModal}
+        profiles={profiles}
+        activeProfileId={activeViewMode === 'user_2' ? 'user_2' : 'user_1'}
       />
 
       <DebtPaymentModal
@@ -1296,6 +1504,8 @@ export default function App() {
         }}
         onSave={handleSaveSavingsGoal}
         initialData={editingSavingsGoal}
+        profiles={profiles}
+        activeProfileId={activeViewMode === 'user_2' ? 'user_2' : 'user_1'}
       />
 
       <SavingsDepositModal
@@ -1322,6 +1532,14 @@ export default function App() {
           setDepositModalType(type);
           setIsDepositModalOpen(true);
         }}
+      />
+
+      {/* Profile Settings Modal */}
+      <ProfileSettingsModal
+        isOpen={isProfileSettingsOpen}
+        onClose={() => setIsProfileSettingsOpen(false)}
+        profiles={profiles}
+        onSaveProfiles={handleSaveProfiles}
       />
     </div>
   );

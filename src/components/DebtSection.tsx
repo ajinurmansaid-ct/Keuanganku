@@ -18,7 +18,7 @@ import {
   ChevronRight,
   User
 } from 'lucide-react';
-import { DebtItem, FinancialSummary } from '../types';
+import { DebtItem, FinancialSummary, UserProfile, ActiveViewMode } from '../types';
 import { formatRupiah, formatFullDateIndonesian, getMonthNameIndonesian } from '../utils/formatters';
 
 interface DebtSectionProps {
@@ -33,6 +33,8 @@ interface DebtSectionProps {
   onOpenPaymentModal: (debt: DebtItem) => void;
   onOpenHistoryModal: (debt: DebtItem) => void;
   onDeleteDebt: (id: string) => void;
+  profiles?: UserProfile[];
+  activeViewMode?: ActiveViewMode;
 }
 
 export const DebtSection: React.FC<DebtSectionProps> = ({
@@ -44,8 +46,13 @@ export const DebtSection: React.FC<DebtSectionProps> = ({
   onOpenPaymentModal,
   onOpenHistoryModal,
   onDeleteDebt,
+  profiles = [],
+  activeViewMode = 'user_1',
 }) => {
   const [filterTab, setFilterTab] = useState<'all' | 'unpaid' | 'paid' | 'deficit'>('all');
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
 
   // Compute Debt Totals
   const stats = useMemo(() => {
@@ -298,6 +305,21 @@ export const DebtSection: React.FC<DebtSectionProps> = ({
                   {/* Top Bar: Badges & Actions */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex flex-wrap items-center gap-1.5">
+                      {/* Profile Owner Badge for Combined View */}
+                      {activeViewMode === 'combined' && (
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-bold rounded-md border flex items-center gap-1 shrink-0 ${
+                            (debt.profileId || 'user_1') === 'user_1'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-violet-50 text-violet-700 border-violet-200'
+                          }`}
+                        >
+                          {(debt.profileId || 'user_1') === 'user_1'
+                            ? profile1?.name || 'Orang 1'
+                            : profile2?.name || 'Orang 2'}
+                        </span>
+                      )}
+
                       {/* Deficit Badge */}
                       {debt.isFromMonthlyDeficit && (
                         <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-purple-100 text-purple-800 flex items-center gap-1">

@@ -1,6 +1,18 @@
 {
   "schema": {
     "entities": {
+      "profiles": {
+        "fields": {
+          "id": { "type": "string", "description": "Profile ID e.g. user_1 or user_2" },
+          "name": { "type": "string", "description": "Display name of the person" },
+          "subtitle": { "type": "string", "description": "Short role or description" },
+          "avatarIcon": { "type": "string", "description": "Icon type for avatar" },
+          "color": { "type": "string", "description": "Theme color accent name" },
+          "badgeBg": { "type": "string", "description": "Tailwind badge background class" },
+          "badgeText": { "type": "string", "description": "Tailwind badge text class" },
+          "borderClass": { "type": "string", "description": "Tailwind border class" }
+        }
+      },
       "transactions": {
         "fields": {
           "id": { "type": "string", "description": "Unique transaction ID" },
@@ -11,7 +23,8 @@
           "paymentMethod": { "type": "string", "description": "Payment method" },
           "date": { "type": "string", "description": "Date YYYY-MM-DD" },
           "notes": { "type": "string", "description": "Optional notes" },
-          "createdAt": { "type": "number", "description": "Timestamp" }
+          "createdAt": { "type": "number", "description": "Timestamp" },
+          "profileId": { "type": "string", "description": "Belongs to user_1 or user_2" }
         }
       },
       "debts": {
@@ -28,7 +41,8 @@
           "notes": { "type": "string", "description": "Notes" },
           "paymentMethod": { "type": "string", "description": "Default payment method" },
           "history": { "type": "array", "description": "Payment logs" },
-          "createdAt": { "type": "number", "description": "Timestamp" }
+          "createdAt": { "type": "number", "description": "Timestamp" },
+          "profileId": { "type": "string", "description": "Belongs to user_1 or user_2" }
         }
       },
       "savingsGoals": {
@@ -41,7 +55,8 @@
           "icon": { "type": "string", "description": "Icon name" },
           "targetDate": { "type": "string", "description": "Target date" },
           "history": { "type": "array", "description": "Deposit history" },
-          "createdAt": { "type": "number", "description": "Timestamp" }
+          "createdAt": { "type": "number", "description": "Timestamp" },
+          "profileId": { "type": "string", "description": "Belongs to user_1 or user_2" }
         }
       },
       "recurringBills": {
@@ -53,13 +68,15 @@
           "dueDay": { "type": "number", "description": "Day of the month" },
           "paymentMethod": { "type": "string", "description": "Payment method" },
           "paidMonths": { "type": "array", "description": "Paid month keys" },
-          "createdAt": { "type": "number", "description": "Timestamp" }
+          "createdAt": { "type": "number", "description": "Timestamp" },
+          "profileId": { "type": "string", "description": "Belongs to user_1 or user_2" }
         }
       },
       "budgets": {
         "fields": {
           "categoryId": { "type": "string", "description": "Category ID" },
-          "budget": { "type": "number", "description": "Monthly budget" }
+          "budget": { "type": "number", "description": "Monthly budget" },
+          "profileId": { "type": "string", "description": "Belongs to user_1 or user_2" }
         }
       }
     }

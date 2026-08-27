@@ -16,10 +16,12 @@ import {
   CreditCard,
   Cloud,
   CloudCheck,
-  RefreshCw
+  RefreshCw,
+  UserCheck
 } from 'lucide-react';
 import { getMonthNameIndonesian, getUniqueMonths } from '../utils/formatters';
-import { Transaction } from '../types';
+import { Transaction, UserProfile, ActiveViewMode } from '../types';
+import { ProfileSwitcher } from './ProfileSwitcher';
 
 interface HeaderProps {
   selectedMonth: string;
@@ -35,6 +37,11 @@ interface HeaderProps {
   onExportJSON: () => void;
   onImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onForceSyncCloud?: () => void;
+  // Multi-user profile props
+  profiles?: UserProfile[];
+  activeViewMode?: ActiveViewMode;
+  onSelectViewMode?: (mode: ActiveViewMode) => void;
+  onOpenProfileSettings?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,6 +58,10 @@ export const Header: React.FC<HeaderProps> = ({
   onExportJSON,
   onImportJSON,
   onForceSyncCloud,
+  profiles = [],
+  activeViewMode = 'user_1',
+  onSelectViewMode,
+  onOpenProfileSettings,
 }) => {
   const [showDataMenu, setShowDataMenu] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -67,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           {/* Logo & Title */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -77,8 +88,9 @@ export const Header: React.FC<HeaderProps> = ({
               <div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Catatan Keuangan
-                  <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
-                    Pribadi
+                  <span className="text-[11px] font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 flex items-center gap-1">
+                    <UserCheck className="w-3 h-3" />
+                    2 Pengguna
                   </span>
                   <button
                     onClick={handleSyncClick}
@@ -91,13 +103,13 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 </h1>
                 <p className="text-xs text-slate-500 hidden sm:block">
-                  Kelola pengeluaran, pantau grafik bulanan, & optimalkan anggaran
+                  Kelola pengeluaran mandiri untuk 2 orang terpisah & gabungan
                 </p>
               </div>
             </div>
 
             {/* Mobile Quick Add */}
-            <div className="flex md:hidden items-center gap-1.5">
+            <div className="flex lg:hidden items-center gap-1.5">
               <button
                 onClick={onOpenResetModal}
                 className="p-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition"
@@ -114,6 +126,18 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Profile Switcher (Center) */}
+          {onSelectViewMode && onOpenProfileSettings && (
+            <div className="flex items-center justify-start lg:justify-center overflow-x-auto py-1">
+              <ProfileSwitcher
+                profiles={profiles}
+                activeViewMode={activeViewMode}
+                onSelectViewMode={onSelectViewMode}
+                onOpenProfileSettings={onOpenProfileSettings}
+              />
+            </div>
+          )}
 
           {/* Controls: Month Filter & Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">

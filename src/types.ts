@@ -2,6 +2,20 @@ export type TransactionType = 'expense' | 'income';
 
 export type PaymentMethod = 'cash' | 'bank' | 'e-wallet' | 'credit_card';
 
+export type UserProfileId = 'user_1' | 'user_2';
+export type ActiveViewMode = UserProfileId | 'combined';
+
+export interface UserProfile {
+  id: UserProfileId;
+  name: string;
+  subtitle: string;
+  avatarIcon: 'User' | 'Heart' | 'Briefcase' | 'Smile' | 'Star' | 'Crown';
+  color: 'emerald' | 'violet' | 'sky' | 'rose' | 'amber';
+  badgeBg: string;
+  badgeText: string;
+  borderClass: string;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -22,11 +36,13 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   notes?: string;
   createdAt: number;
+  profileId?: UserProfileId;
 }
 
 export interface CategoryBudget {
   categoryId: string;
   monthlyLimit: number;
+  profileId?: UserProfileId;
 }
 
 export interface FinancialSummary {
@@ -116,6 +132,7 @@ export interface SavingsGoal {
   notes?: string;
   history: SavingsLog[];
   createdAt: number;
+  profileId?: UserProfileId;
 }
 
 export interface RecurringBill {
@@ -130,6 +147,7 @@ export interface RecurringBill {
   paidMonths: string[]; // List of month keys 'YYYY-MM' where this bill was marked as paid
   lastPaidDate?: string; // YYYY-MM-DD
   createdAt: number;
+  profileId?: UserProfileId;
 }
 
 export interface DebtPaymentLog {
@@ -157,4 +175,5 @@ export interface DebtItem {
   paymentMethod?: PaymentMethod;
   history: DebtPaymentLog[];
   createdAt: number;
+  profileId?: UserProfileId;
 }

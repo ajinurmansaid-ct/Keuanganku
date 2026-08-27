@@ -23,7 +23,7 @@ import {
   AlertTriangle,
   X
 } from 'lucide-react';
-import { SavingsGoal } from '../types';
+import { SavingsGoal, UserProfile, ActiveViewMode } from '../types';
 import { formatRupiah, formatFullDateIndonesian } from '../utils/formatters';
 
 interface SavingsSectionProps {
@@ -33,6 +33,8 @@ interface SavingsSectionProps {
   onDeleteGoal: (id: string) => void;
   onOpenDepositModal: (goal: SavingsGoal, type: 'deposit' | 'withdraw') => void;
   onOpenHistoryModal: (goal: SavingsGoal) => void;
+  profiles?: UserProfile[];
+  activeViewMode?: ActiveViewMode;
 }
 
 const CATEGORY_ICONS: Record<string, any> = {
@@ -54,9 +56,14 @@ export const SavingsSection: React.FC<SavingsSectionProps> = ({
   onDeleteGoal,
   onOpenDepositModal,
   onOpenHistoryModal,
+  profiles = [],
+  activeViewMode = 'user_1',
 }) => {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [goalToDelete, setGoalToDelete] = useState<SavingsGoal | null>(null);
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
 
   // Stats
   const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0);
@@ -245,9 +252,24 @@ export const SavingsSection: React.FC<SavingsSectionProps> = ({
                         <IconComponent className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-sm font-bold text-slate-900 truncate" title={goal.title}>
-                          {goal.title}
-                        </h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-bold text-slate-900 truncate" title={goal.title}>
+                            {goal.title}
+                          </h3>
+                          {activeViewMode === 'combined' && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                                (goal.profileId || 'user_1') === 'user_1'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-violet-50 text-violet-700 border-violet-200'
+                              }`}
+                            >
+                              {(goal.profileId || 'user_1') === 'user_1'
+                                ? profile1?.name || 'Orang 1'
+                                : profile2?.name || 'Orang 2'}
+                            </span>
+                          )}
+                        </div>
                         {goal.targetDate ? (
                           <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
                             <Calendar className="w-3 h-3 text-slate-400" />

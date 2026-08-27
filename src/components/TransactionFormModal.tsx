@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Check, DollarSign, Calendar, Tag, CreditCard } from 'lucide-react';
-import { Transaction, TransactionType, PaymentMethod } from '../types';
+import { X, Plus, Check, DollarSign, Calendar, Tag, CreditCard, User, Heart } from 'lucide-react';
+import { Transaction, TransactionType, PaymentMethod, UserProfile, UserProfileId } from '../types';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_METHODS } from '../data/categories';
 import { formatRupiah } from '../utils/formatters';
 
@@ -10,6 +10,8 @@ interface TransactionFormModalProps {
   onSave: (transaction: Omit<Transaction, 'id' | 'createdAt'>, editingId?: string) => void;
   initialData?: Transaction | null;
   defaultMonth?: string;
+  profiles?: UserProfile[];
+  activeProfileId?: UserProfileId;
 }
 
 export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
@@ -18,6 +20,8 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   onSave,
   initialData,
   defaultMonth,
+  profiles = [],
+  activeProfileId = 'user_1',
 }) => {
   const [type, setType] = useState<TransactionType>('expense');
   const [title, setTitle] = useState('');
@@ -26,6 +30,10 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [date, setDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('e-wallet');
   const [notes, setNotes] = useState('');
+  const [profileId, setProfileId] = useState<UserProfileId>(activeProfileId);
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
 
   // Pre-fill form when editing or resetting
   useEffect(() => {
@@ -37,6 +45,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setDate(initialData.date);
       setPaymentMethod(initialData.paymentMethod);
       setNotes(initialData.notes || '');
+      setProfileId(initialData.profileId || activeProfileId);
     } else {
       setType('expense');
       setTitle('');
@@ -54,8 +63,9 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 
       setPaymentMethod('e-wallet');
       setNotes('');
+      setProfileId(activeProfileId);
     }
-  }, [initialData, isOpen, defaultMonth]);
+  }, [initialData, isOpen, defaultMonth, activeProfileId]);
 
   // When type changes, switch default category
   const handleTypeChange = (newType: TransactionType) => {
@@ -85,6 +95,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         date,
         paymentMethod,
         notes: notes.trim(),
+        profileId,
       },
       initialData?.id
     );
@@ -101,9 +112,14 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-900">
-            {initialData ? 'Edit Transaksi' : 'Catat Transaksi Baru'}
-          </h3>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">
+              {initialData ? 'Edit Transaksi' : 'Catat Transaksi Baru'}
+            </h3>
+            <p className="text-xs text-slate-500">
+              {profileId === 'user_1' ? (profile1?.name || 'Orang 1') : (profile2?.name || 'Orang 2')}
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition"
@@ -112,8 +128,41 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+          {/* User Profile Attributed To */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Dicatat untuk Pengguna:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setProfileId('user_1')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_1'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-500 ring-2 ring-emerald-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <User className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="truncate">{profile1?.name || 'Orang 1'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProfileId('user_2')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_2'
+                    ? 'bg-violet-50 text-violet-800 border-violet-500 ring-2 ring-violet-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Heart className="w-3.5 h-3.5 text-violet-600" />
+                <span className="truncate">{profile2?.name || 'Orang 2'}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Type Switcher */}
           <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-sm font-semibold">
             <button

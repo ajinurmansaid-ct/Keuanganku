@@ -15,15 +15,17 @@ import {
   Heart,
   Palette
 } from 'lucide-react';
-import { SavingsGoal, SavingsCategoryType } from '../types';
+import { SavingsGoal, SavingsCategoryType, UserProfile, UserProfileId } from '../types';
 import { SAVINGS_CATEGORIES_CONFIG } from '../data/sampleSavings';
 import { formatRupiah } from '../utils/formatters';
 
 interface SavingsGoalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (goalData: Omit<SavingsGoal, 'id' | 'createdAt' | 'history'> & { initialDeposit?: number; id?: string }) => void;
+  onSave: (goalData: Omit<SavingsGoal, 'id' | 'createdAt' | 'history'> & { initialDeposit?: number; id?: string; profileId?: UserProfileId }) => void;
   initialData?: SavingsGoal | null;
+  profiles?: UserProfile[];
+  activeProfileId?: UserProfileId;
 }
 
 const CATEGORY_ICONS: Record<string, any> = {
@@ -55,6 +57,8 @@ export const SavingsGoalModal: React.FC<SavingsGoalModalProps> = ({
   onClose,
   onSave,
   initialData,
+  profiles = [],
+  activeProfileId = 'user_1',
 }) => {
   const [title, setTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState<string>('');
@@ -63,6 +67,10 @@ export const SavingsGoalModal: React.FC<SavingsGoalModalProps> = ({
   const [category, setCategory] = useState<SavingsCategoryType>('emergency');
   const [color, setColor] = useState('#10B981');
   const [notes, setNotes] = useState('');
+  const [profileId, setProfileId] = useState<UserProfileId>(activeProfileId);
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
 
   useEffect(() => {
     if (initialData) {
@@ -73,6 +81,7 @@ export const SavingsGoalModal: React.FC<SavingsGoalModalProps> = ({
       setCategory(initialData.category);
       setColor(initialData.color);
       setNotes(initialData.notes || '');
+      setProfileId(initialData.profileId || activeProfileId);
     } else {
       setTitle('');
       setTargetAmount('');
@@ -81,8 +90,9 @@ export const SavingsGoalModal: React.FC<SavingsGoalModalProps> = ({
       setCategory('emergency');
       setColor('#10B981');
       setNotes('');
+      setProfileId(activeProfileId);
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, activeProfileId]);
 
   if (!isOpen) return null;
 
@@ -122,6 +132,7 @@ export const SavingsGoalModal: React.FC<SavingsGoalModalProps> = ({
       icon: config ? config.icon : 'PiggyBank',
       notes: notes.trim() || undefined,
       initialDeposit: initialData ? 0 : numInitDeposit,
+      profileId,
     });
 
     onClose();
@@ -155,6 +166,40 @@ export const SavingsGoalModal: React.FC<SavingsGoalModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+          {/* Pemilik Tabungan */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              Tabungan Milik Pengguna:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setProfileId('user_1')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_1'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-500 ring-2 ring-emerald-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span className="truncate">{profile1?.name || 'Orang 1'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProfileId('user_2')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_2'
+                    ? 'bg-violet-50 text-violet-800 border-violet-500 ring-2 ring-violet-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-violet-500"></span>
+                <span className="truncate">{profile2?.name || 'Orang 2'}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Judul Target */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">

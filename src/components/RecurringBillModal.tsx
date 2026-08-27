@@ -12,7 +12,7 @@ import {
   HelpCircle,
   AlertCircle
 } from 'lucide-react';
-import { RecurringBill, PaymentMethod } from '../types';
+import { RecurringBill, PaymentMethod, UserProfile, UserProfileId } from '../types';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../data/categories';
 import { RECURRING_PRESETS, RecurringBillPreset } from '../data/sampleRecurringBills';
 import { formatRupiah } from '../utils/formatters';
@@ -20,8 +20,13 @@ import { formatRupiah } from '../utils/formatters';
 interface RecurringBillModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (billData: Omit<RecurringBill, 'id' | 'createdAt' | 'paidMonths'>, editingId?: string) => void;
+  onSave: (
+    billData: Omit<RecurringBill, 'id' | 'createdAt' | 'paidMonths'> & { profileId?: UserProfileId },
+    editingId?: string
+  ) => void;
   initialData?: RecurringBill | null;
+  profiles?: UserProfile[];
+  activeProfileId?: UserProfileId;
 }
 
 export const RecurringBillModal: React.FC<RecurringBillModalProps> = ({
@@ -29,6 +34,8 @@ export const RecurringBillModal: React.FC<RecurringBillModalProps> = ({
   onClose,
   onSave,
   initialData,
+  profiles = [],
+  activeProfileId = 'user_1',
 }) => {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -38,6 +45,10 @@ export const RecurringBillModal: React.FC<RecurringBillModalProps> = ({
   const [notes, setNotes] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<UserProfileId>(activeProfileId);
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
 
   useEffect(() => {
     if (initialData) {
@@ -48,6 +59,7 @@ export const RecurringBillModal: React.FC<RecurringBillModalProps> = ({
       setDueDay(initialData.dueDay || 10);
       setNotes(initialData.notes || '');
       setIsActive(initialData.isActive ?? true);
+      setProfileId(initialData.profileId || activeProfileId);
       setErrorMsg(null);
     } else {
       setTitle('');
@@ -57,9 +69,10 @@ export const RecurringBillModal: React.FC<RecurringBillModalProps> = ({
       setDueDay(10);
       setNotes('');
       setIsActive(true);
+      setProfileId(activeProfileId);
       setErrorMsg(null);
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, activeProfileId]);
 
   if (!isOpen) return null;
 
@@ -102,6 +115,7 @@ export const RecurringBillModal: React.FC<RecurringBillModalProps> = ({
         dueDay,
         notes: notes.trim(),
         isActive,
+        profileId,
       },
       initialData ? initialData.id : undefined
     );
@@ -143,6 +157,40 @@ export const RecurringBillModal: React.FC<RecurringBillModalProps> = ({
               <span>{errorMsg}</span>
             </div>
           )}
+
+          {/* Pemilik Tagihan */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Tagihan Rutin Milik:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setProfileId('user_1')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_1'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-500 ring-2 ring-emerald-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span className="truncate">{profile1?.name || 'Orang 1'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProfileId('user_2')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_2'
+                    ? 'bg-violet-50 text-violet-800 border-violet-500 ring-2 ring-violet-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-violet-500"></span>
+                <span className="truncate">{profile2?.name || 'Orang 2'}</span>
+              </button>
+            </div>
+          </div>
 
           {/* Quick Presets (Only when adding new) */}
           {!initialData && (

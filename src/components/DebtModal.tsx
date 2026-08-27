@@ -11,7 +11,7 @@ import {
   DollarSign,
   TrendingDown
 } from 'lucide-react';
-import { DebtItem, PaymentMethod } from '../types';
+import { DebtItem, PaymentMethod, UserProfile, UserProfileId } from '../types';
 import { PAYMENT_METHODS } from '../data/categories';
 import { DEBT_PRESETS, DebtPreset } from '../data/sampleDebts';
 import { formatRupiah, getMonthNameIndonesian, getTodayDateString } from '../utils/formatters';
@@ -22,6 +22,7 @@ interface DebtModalProps {
   onSave: (
     debtData: Omit<DebtItem, 'id' | 'createdAt' | 'history' | 'status' | 'remainingAmount'> & {
       initialRemainingAmount?: number;
+      profileId?: UserProfileId;
     },
     editingId?: string
   ) => void;
@@ -30,6 +31,8 @@ interface DebtModalProps {
     monthKey: string;
     amount: number;
   } | null;
+  profiles?: UserProfile[];
+  activeProfileId?: UserProfileId;
 }
 
 export const DebtModal: React.FC<DebtModalProps> = ({
@@ -38,6 +41,8 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   onSave,
   initialData,
   suggestedDeficit,
+  profiles = [],
+  activeProfileId = 'user_1',
 }) => {
   const [title, setTitle] = useState('');
   const [creditor, setCreditor] = useState('');
@@ -48,6 +53,10 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bank');
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<UserProfileId>(activeProfileId);
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
 
   useEffect(() => {
     if (initialData) {
@@ -59,6 +68,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
       setDeficitMonth(initialData.deficitMonth || '');
       setPaymentMethod(initialData.paymentMethod || 'bank');
       setNotes(initialData.notes || '');
+      setProfileId(initialData.profileId || activeProfileId);
       setErrorMsg(null);
     } else if (suggestedDeficit) {
       // Auto pre-fill if triggered from smart deficit detection
@@ -70,6 +80,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
       setDeficitMonth(suggestedDeficit.monthKey);
       setPaymentMethod('bank');
       setNotes(`Menutup defisit minus pengeluaran bulan ${monthLabel}`);
+      setProfileId(activeProfileId);
       
       // Default due date: end of current month
       const today = getTodayDateString();
@@ -84,9 +95,10 @@ export const DebtModal: React.FC<DebtModalProps> = ({
       setDeficitMonth('');
       setPaymentMethod('bank');
       setNotes('');
+      setProfileId(activeProfileId);
       setErrorMsg(null);
     }
-  }, [initialData, suggestedDeficit, isOpen]);
+  }, [initialData, suggestedDeficit, isOpen, activeProfileId]);
 
   if (!isOpen) return null;
 
@@ -129,6 +141,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
         deficitMonth: isFromMonthlyDeficit ? deficitMonth : undefined,
         paymentMethod,
         notes: notes.trim(),
+        profileId,
       },
       initialData ? initialData.id : undefined
     );
@@ -170,6 +183,40 @@ export const DebtModal: React.FC<DebtModalProps> = ({
               <span>{errorMsg}</span>
             </div>
           )}
+
+          {/* Pemilik Hutang */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Kewajiban / Hutang Milik:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setProfileId('user_1')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_1'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-500 ring-2 ring-emerald-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span className="truncate">{profile1?.name || 'Orang 1'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProfileId('user_2')}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                  profileId === 'user_2'
+                    ? 'bg-violet-50 text-violet-800 border-violet-500 ring-2 ring-violet-500/20'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-violet-500"></span>
+                <span className="truncate">{profile2?.name || 'Orang 2'}</span>
+              </button>
+            </div>
+          </div>
 
           {/* Quick Presets (Only when adding new and not from suggested deficit) */}
           {!initialData && !suggestedDeficit && (

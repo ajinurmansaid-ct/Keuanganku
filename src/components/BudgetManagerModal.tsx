@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { X, Target, Save, RotateCcw } from 'lucide-react';
-import { CategoryBudget, Transaction } from '../types';
+import React, { useState, useEffect } from 'react';
+import { X, Target, Save, RotateCcw, User, Heart } from 'lucide-react';
+import { CategoryBudget, Transaction, UserProfile, UserProfileId } from '../types';
 import { EXPENSE_CATEGORIES } from '../data/categories';
 import { formatRupiah, getMonthNameIndonesian, getMonthYearKey } from '../utils/formatters';
 
@@ -11,6 +11,8 @@ interface BudgetManagerModalProps {
   onSaveBudgets: (updated: CategoryBudget[]) => void;
   selectedMonth: string;
   transactions: Transaction[];
+  profiles?: UserProfile[];
+  activeProfileId?: UserProfileId;
 }
 
 export const BudgetManagerModal: React.FC<BudgetManagerModalProps> = ({
@@ -20,37 +22,73 @@ export const BudgetManagerModal: React.FC<BudgetManagerModalProps> = ({
   onSaveBudgets,
   selectedMonth,
   transactions,
+  profiles = [],
+  activeProfileId = 'user_1',
 }) => {
-  const [localLimits, setLocalLimits] = useState<Record<string, number>>(() => {
+  const [currentTab, setCurrentTab] = useState<UserProfileId>(activeProfileId);
+
+  const profile1 = profiles.find((p) => p.id === 'user_1');
+  const profile2 = profiles.find((p) => p.id === 'user_2');
+
+  // Helper to load limits for a given profile
+  const getLimitsForProfile = (pId: UserProfileId) => {
     const map: Record<string, number> = {};
     EXPENSE_CATEGORIES.forEach((cat) => {
-      const found = budgets.find((b) => b.categoryId === cat.id);
+      const found = budgets.find(
+        (b) => b.categoryId === cat.id && (b.profileId || 'user_1') === pId
+      );
       map[cat.id] = found ? found.monthlyLimit : cat.defaultBudget || 1000000;
     });
     return map;
-  });
+  };
+
+  const [limits1, setLimits1] = useState<Record<string, number>>(() => getLimitsForProfile('user_1'));
+  const [limits2, setLimits2] = useState<Record<string, number>>(() => getLimitsForProfile('user_2'));
+
+  useEffect(() => {
+    setLimits1(getLimitsForProfile('user_1'));
+    setLimits2(getLimitsForProfile('user_2'));
+    setCurrentTab(activeProfileId);
+  }, [budgets, activeProfileId, isOpen]);
 
   if (!isOpen) return null;
 
+  const currentLimits = currentTab === 'user_1' ? limits1 : limits2;
+  const setCurrentLimits = currentTab === 'user_1' ? setLimits1 : setLimits2;
+
   const handleInputChange = (catId: string, valueStr: string) => {
     const num = parseFloat(valueStr) || 0;
-    setLocalLimits((prev) => ({ ...prev, [catId]: num }));
+    setCurrentLimits((prev) => ({ ...prev, [catId]: num }));
   };
 
   const handleSave = () => {
-    const updatedList: CategoryBudget[] = Object.entries(localLimits).map(
+    // Generate full list for both profiles to keep state comprehensive
+    const list1: CategoryBudget[] = Object.entries(limits1).map(
       ([categoryId, monthlyLimit]) => ({
         categoryId,
         monthlyLimit: Number(monthlyLimit),
+        profileId: 'user_1',
       })
     );
-    onSaveBudgets(updatedList);
+
+    const list2: CategoryBudget[] = Object.entries(limits2).map(
+      ([categoryId, monthlyLimit]) => ({
+        categoryId,
+        monthlyLimit: Number(monthlyLimit),
+        profileId: 'user_2',
+      })
+    );
+
+    onSaveBudgets([...list1, ...list2]);
     onClose();
   };
 
-  // Get current month spending for comparison
+  // Get current month spending for comparison for the active tab user
   const currentMonthTx = transactions.filter(
-    (t) => t.type === 'expense' && getMonthYearKey(t.date) === selectedMonth
+    (t) =>
+      t.type === 'expense' &&
+      getMonthYearKey(t.date) === selectedMonth &&
+      (t.profileId || 'user_1') === currentTab
   );
 
   return (
@@ -73,16 +111,54 @@ export const BudgetManagerModal: React.FC<BudgetManagerModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* Profile Tab Switcher */}
+        <div className="px-6 pt-4 pb-2 bg-slate-50/50 border-b border-slate-100">
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+            Pilih Target Anggaran Untuk:
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentTab('user_1')}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                currentTab === 'user_1'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-500 ring-2 ring-emerald-500/20'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <User className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="truncate">{profile1?.name || 'Orang 1'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentTab('user_2')}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                currentTab === 'user_2'
+                  ? 'bg-violet-50 text-violet-800 border-violet-500 ring-2 ring-violet-500/20'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Heart className="w-3.5 h-3.5 text-violet-600" />
+              <span className="truncate">{profile2?.name || 'Orang 2'}</span>
+            </button>
+          </div>
+        </div>
+
         {/* Content List */}
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           <p className="text-xs text-slate-600 leading-relaxed bg-indigo-50/50 border border-indigo-100 p-3 rounded-xl">
-            Tentukan batas maksimal pengeluaran per kategori. Sistem akan memberi peringatan jika pengeluaran bulan ini mendekati atau melewati batas.
+            Tentukan batas maksimal pengeluaran per kategori untuk{' '}
+            <strong className="text-indigo-900 font-bold">
+              {currentTab === 'user_1' ? profile1?.name || 'Orang 1' : profile2?.name || 'Orang 2'}
+            </strong>
+            . Sistem akan memberi peringatan jika pengeluaran bulan ini mendekati atau melewati batas.
           </p>
 
           <div className="space-y-3">
@@ -91,7 +167,7 @@ export const BudgetManagerModal: React.FC<BudgetManagerModalProps> = ({
                 .filter((t) => t.categoryId === cat.id)
                 .reduce((sum, t) => sum + t.amount, 0);
 
-              const limit = localLimits[cat.id] || 0;
+              const limit = currentLimits[cat.id] || 0;
               const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
 
               return (
@@ -140,24 +216,24 @@ export const BudgetManagerModal: React.FC<BudgetManagerModalProps> = ({
               EXPENSE_CATEGORIES.forEach((cat) => {
                 map[cat.id] = cat.defaultBudget || 1000000;
               });
-              setLocalLimits(map);
+              setCurrentLimits(map);
             }}
-            className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium"
+            className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset ke Standar
+            Reset {currentTab === 'user_1' ? profile1?.name : profile2?.name} ke Standar
           </button>
 
           <div className="flex items-center space-x-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/50 transition"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/50 transition cursor-pointer"
             >
               Batal
             </button>
             <button
               onClick={handleSave}
-              className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm flex items-center gap-1.5"
+              className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               Simpan Target
