@@ -8,14 +8,17 @@ import {
   CheckCircle,
   WifiOff,
   Sparkles,
-  Info
+  Info,
+  AlertTriangle,
+  Compass
 } from 'lucide-react';
-import { BeforeInstallPromptEvent, isIosDevice, isRunningStandalone } from '../utils/pwa';
+import { BeforeInstallPromptEvent, isIosDevice, isInAppBrowser, isRunningStandalone } from '../utils/pwa';
 
 export const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [inAppBrowser, setInAppBrowser] = useState(false);
   const [showIosModal, setShowIosModal] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -23,6 +26,7 @@ export const PWAInstallPrompt: React.FC = () => {
   useEffect(() => {
     setIsStandalone(isRunningStandalone());
     setIsIos(isIosDevice());
+    setInAppBrowser(isInAppBrowser());
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -38,10 +42,21 @@ export const PWAInstallPrompt: React.FC = () => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
+    const handleOpenGuide = () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt().catch(() => {
+          setShowIosModal(true);
+        });
+      } else {
+        setShowIosModal(true);
+      }
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('open-pwa-install-guide', handleOpenGuide);
 
     // Check if dismissed in this session
     const dismissed = sessionStorage.getItem('pwa_prompt_dismissed');
@@ -54,8 +69,9 @@ export const PWAInstallPrompt: React.FC = () => {
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('open-pwa-install-guide', handleOpenGuide);
     };
-  }, []);
+  }, [deferredPrompt]);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -68,8 +84,9 @@ export const PWAInstallPrompt: React.FC = () => {
         setDeferredPrompt(null);
       } catch (err) {
         console.error('[PWA] Installation prompt error:', err);
+        setShowIosModal(true);
       }
-    } else if (isIos) {
+    } else {
       setShowIosModal(true);
     }
   };
@@ -113,7 +130,9 @@ export const PWAInstallPrompt: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-200 truncate sm:whitespace-normal">
-                  Data otomatis tersimpan di Cloud & perangkat Anda. Pasang di layar utama HP untuk akses cepat & offline.
+                  {isIos
+                    ? 'Pengguna iPhone: Pasang ke Layar Utama lewat Safari agar dapat dibuka seperti aplikasi mandiri.'
+                    : 'Data tersimpan di Cloud & perangkat. Pasang di layar utama HP untuk akses cepat & offline.'}
                 </p>
               </div>
             </div>
@@ -125,7 +144,7 @@ export const PWAInstallPrompt: React.FC = () => {
                 className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
-                <span>Pasang di HP</span>
+                <span>{isIos ? 'Cara Pasang di iPhone' : 'Pasang di HP'}</span>
               </button>
               <button
                 type="button"
@@ -140,18 +159,20 @@ export const PWAInstallPrompt: React.FC = () => {
         </div>
       )}
 
-      {/* iOS Add to Home Screen Instructions Modal */}
+      {/* iOS & Mobile Add to Home Screen Instructions Modal */}
       {showIosModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 p-6 space-y-5 animate-in slide-in-from-bottom-6 duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 p-6 space-y-4 animate-in slide-in-from-bottom-6 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
                   <Smartphone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Pasang di iPhone / iPad</h3>
-                  <p className="text-xs text-slate-500">Panduan Tambah ke Layar Utama iOS</p>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {isIos ? 'Pasang di iPhone / iPad' : 'Pasang di Layar Utama HP'}
+                  </h3>
+                  <p className="text-xs text-slate-500">Panduan PWA Progressive Web App</p>
                 </div>
               </div>
               <button
@@ -162,18 +183,43 @@ export const PWAInstallPrompt: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs text-slate-700">
+            {/* In-App Browser Warning if detected */}
+            {inAppBrowser && (
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="font-bold">Membuka dari WhatsApp / Instagram?</p>
+                  <p className="text-[11px] text-amber-800 mt-0.5">
+                    Browser internal chat tidak mengizinkan pemasangan aplikasi. Ketuk ikon titik tiga (•••) atau kompas di pojok, lalu pilih <strong className="font-semibold">"Buka di Safari"</strong>.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* iOS System Explanation Notice */}
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-slate-600 text-xs flex items-start gap-2.5">
+              <Info className="w-4 h-4 shrink-0 text-indigo-600 mt-0.5" />
+              <div>
+                <p className="font-semibold text-slate-800">Mengapa tidak ada tombol download otomatis?</p>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Sistem operasi Apple iOS tidak mengizinkan web app memicu instalasi otomatis secara sepihak. Pengguna iPhone memasangnya langsung melalui fitur resmi <strong>"Add to Home Screen"</strong> di browser Safari.
+                </p>
+              </div>
+            </div>
+
+            {/* Steps Guide */}
+            <div className="space-y-3 text-xs text-slate-700">
               <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">
                   1
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-900 flex items-center gap-1.5">
-                    Ketuk tombol Bagikan (Share)
-                    <Share className="w-4 h-4 text-blue-600 inline" />
+                    Buka di Browser Safari
+                    <Compass className="w-4 h-4 text-sky-600 inline" />
                   </p>
-                  <p className="text-slate-500 mt-0.5">
-                    Di bilah menu bawah browser Safari iPhone/iPad Anda.
+                  <p className="text-slate-500 mt-0.5 text-[11px]">
+                    Pastikan tautan dibuka di browser resmi Safari bawaan iPhone (bukan in-app browser WhatsApp/Instagram).
                   </p>
                 </div>
               </div>
@@ -184,11 +230,11 @@ export const PWAInstallPrompt: React.FC = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-900 flex items-center gap-1.5">
-                    Pilih "Tambah ke Layar Utama"
-                    <PlusSquare className="w-4 h-4 text-emerald-600 inline" />
+                    Ketuk tombol Bagikan (Share)
+                    <Share className="w-4 h-4 text-blue-600 inline" />
                   </p>
-                  <p className="text-slate-500 mt-0.5">
-                    Gulir ke bawah pada menu opsi lalu ketuk <em>"Add to Home Screen"</em>.
+                  <p className="text-slate-500 mt-0.5 text-[11px]">
+                    Ikon kotak berpanah atas di bilah menu bawah layar Safari iPhone Anda.
                   </p>
                 </div>
               </div>
@@ -198,11 +244,26 @@ export const PWAInstallPrompt: React.FC = () => {
                   3
                 </div>
                 <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+                    Pilih "Tambah ke Layar Utama"
+                    <PlusSquare className="w-4 h-4 text-emerald-600 inline" />
+                  </p>
+                  <p className="text-slate-500 mt-0.5 text-[11px]">
+                    Gulir menu opsi ke bawah lalu pilih <em>"Add to Home Screen"</em>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">
+                  4
+                </div>
+                <div className="min-w-0">
                   <p className="font-semibold text-slate-900">
                     Ketuk "Tambah" (Add) di pojok kanan atas
                   </p>
-                  <p className="text-slate-500 mt-0.5">
-                    Aplikasi Catatan Keuangan akan muncul sebagai ikon aplikasi mandiri di beranda HP Anda.
+                  <p className="text-slate-500 mt-0.5 text-[11px]">
+                    Ikon "Buku Keuangan" akan langsung tampil di beranda iPhone Anda dan dapat dibuka secara layar penuh tanpa bilah URL!
                   </p>
                 </div>
               </div>
@@ -210,7 +271,7 @@ export const PWAInstallPrompt: React.FC = () => {
 
             <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 text-[11px] flex items-center gap-2">
               <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
-              <span>Aplikasi akan dapat dibuka secara instan dan dapat digunakan saat offline!</span>
+              <span>Dapat dibuka secara instan dan dapat digunakan bahkan saat tidak ada koneksi internet (offline).</span>
             </div>
 
             <button

@@ -38,5 +38,13 @@ export function isRunningStandalone(): boolean {
 export function isIosDevice(): boolean {
   if (typeof window === 'undefined') return false;
   const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod/.test(userAgent);
+  const isIos = /iphone|ipad|ipod/.test(userAgent);
+  const isIpadOs = window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1;
+  return isIos || isIpadOs;
+}
+
+export function isInAppBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent || '';
+  return /FBAN|FBAV|Instagram|Line|WhatsApp|Bytedance|TikTok|MicroMessenger|Snapchat/i.test(ua);
 }

@@ -273,14 +273,13 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     onClick={() => {
                       setShowDataMenu(false);
-                      // Clear dismissal to show the install prompt if hidden
                       sessionStorage.removeItem('pwa_prompt_dismissed');
-                      window.location.reload();
+                      window.dispatchEvent(new CustomEvent('open-pwa-install-guide'));
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-emerald-50 text-emerald-700 flex items-center gap-2 text-xs font-semibold cursor-pointer"
                   >
                     <Smartphone className="w-4 h-4 text-emerald-600" />
-                    Pasang di Layar HP (PWA)
+                    Pasang di Layar HP (PWA / iPhone)
                   </button>
 
                   <div className="border-t border-slate-100 my-1"></div>
