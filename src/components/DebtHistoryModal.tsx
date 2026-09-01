@@ -7,7 +7,8 @@ import {
   Trash2,
   CheckCircle2,
   Receipt,
-  ArrowDownRight
+  ArrowDownRight,
+  Coins
 } from 'lucide-react';
 import { DebtItem } from '../types';
 import { formatRupiah, formatFullDateIndonesian } from '../utils/formatters';
@@ -16,7 +17,9 @@ interface DebtHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   debt: DebtItem | null;
-  onDeleteHistoryItem: (debtId: string, historyId: string) => void;
+  onDeleteHistoryItem?: (debtId: string, historyId: string) => void;
+  onDeleteLog?: (debtId: string, historyId: string) => void;
+  onOpenPayment?: (debt: DebtItem) => void;
 }
 
 export const DebtHistoryModal: React.FC<DebtHistoryModalProps> = ({
@@ -24,9 +27,12 @@ export const DebtHistoryModal: React.FC<DebtHistoryModalProps> = ({
   onClose,
   debt,
   onDeleteHistoryItem,
+  onDeleteLog,
+  onOpenPayment,
 }) => {
   if (!isOpen || !debt) return null;
 
+  const handleDeleteItem = onDeleteHistoryItem || onDeleteLog;
   const totalPaid = debt.totalAmount - debt.remainingAmount;
   const percentage = Math.round((totalPaid / debt.totalAmount) * 100);
 
@@ -138,7 +144,9 @@ export const DebtHistoryModal: React.FC<DebtHistoryModalProps> = ({
                   <button
                     onClick={() => {
                       if (confirm('Hapus catatan pembayaran ini? Sisa hutang akan bertambah kembali.')) {
-                        onDeleteHistoryItem(debt.id, log.id);
+                        if (handleDeleteItem) {
+                          handleDeleteItem(debt.id, log.id);
+                        }
                       }
                     }}
                     className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100 cursor-pointer"
@@ -153,7 +161,19 @@ export const DebtHistoryModal: React.FC<DebtHistoryModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-end">
+        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div>
+            {debt.status !== 'paid' && onOpenPayment && (
+              <button
+                type="button"
+                onClick={() => onOpenPayment(debt)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Coins className="w-3.5 h-3.5" />
+                <span>Bayar / Cicil Sekarang</span>
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/50 transition cursor-pointer"

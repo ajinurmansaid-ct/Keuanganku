@@ -1478,7 +1478,8 @@ export default function App() {
           setActiveDebtForPayment(null);
         }}
         debt={activeDebtForPayment}
-        onSavePayment={handleMakeDebtPayment}
+        onMakePayment={handleMakeDebtPayment}
+        selectedMonth={selectedMonth}
       />
 
       <DebtHistoryModal
@@ -1488,8 +1489,9 @@ export default function App() {
           setActiveDebtForHistory(null);
         }}
         debt={activeDebtForHistory}
-        onDeleteLog={handleDeleteDebtHistoryItem}
+        onDeleteHistoryItem={handleDeleteDebtHistoryItem}
         onOpenPayment={(debt) => {
+          setIsDebtHistoryModalOpen(false);
           setActiveDebtForPayment(debt);
           setIsDebtPaymentModalOpen(true);
         }}

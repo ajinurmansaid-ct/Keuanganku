@@ -18,7 +18,7 @@ interface DebtPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   debt: DebtItem | null;
-  onMakePayment: (
+  onMakePayment?: (
     debtId: string,
     amount: number,
     paymentMethod: PaymentMethod,
@@ -26,7 +26,15 @@ interface DebtPaymentModalProps {
     notes: string,
     syncWithTransactions: boolean
   ) => void;
-  selectedMonth: string;
+  onSavePayment?: (
+    debtId: string,
+    amount: number,
+    paymentMethod: PaymentMethod,
+    date: string,
+    notes: string,
+    syncWithTransactions: boolean
+  ) => void;
+  selectedMonth?: string;
 }
 
 export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
@@ -34,7 +42,8 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
   onClose,
   debt,
   onMakePayment,
-  selectedMonth,
+  onSavePayment,
+  selectedMonth = getTodayDateString().slice(0, 7),
 }) => {
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bank');
@@ -42,6 +51,8 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
   const [notes, setNotes] = useState('');
   const [syncWithTransactions, setSyncWithTransactions] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handlePaymentSubmitCallback = onMakePayment || onSavePayment;
 
   useEffect(() => {
     if (debt) {
@@ -91,14 +102,16 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
       return;
     }
 
-    onMakePayment(
-      debt.id,
-      numAmount,
-      paymentMethod,
-      date,
-      notes.trim(),
-      syncWithTransactions
-    );
+    if (handlePaymentSubmitCallback) {
+      handlePaymentSubmitCallback(
+        debt.id,
+        numAmount,
+        paymentMethod,
+        date,
+        notes.trim(),
+        syncWithTransactions
+      );
+    }
 
     onClose();
   };
