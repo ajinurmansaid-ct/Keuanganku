@@ -17,7 +17,8 @@ import {
   Cloud,
   CloudCheck,
   RefreshCw,
-  UserCheck
+  UserCheck,
+  FileSpreadsheet
 } from 'lucide-react';
 import { getMonthNameIndonesian, getUniqueMonths } from '../utils/formatters';
 import { Transaction, UserProfile, ActiveViewMode } from '../types';
@@ -37,6 +38,7 @@ interface HeaderProps {
   onExportJSON: () => void;
   onImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onForceSyncCloud?: () => void;
+  onOpenExportExcelModal?: () => void;
   // Multi-user profile props
   profiles?: UserProfile[];
   activeViewMode?: ActiveViewMode;
@@ -58,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   onExportJSON,
   onImportJSON,
   onForceSyncCloud,
+  onOpenExportExcelModal,
   profiles = [],
   activeViewMode = 'user_1',
   onSelectViewMode,
@@ -239,6 +242,26 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <RefreshCw className={`w-4 h-4 text-sky-600 ${isSyncing ? 'animate-spin' : ''}`} />
                     Sinkronkan ke Cloud
+                  </button>
+
+                  <div className="border-t border-slate-100 my-1"></div>
+
+                  <button
+                    onClick={() => {
+                      if (onOpenExportExcelModal) {
+                        onOpenExportExcelModal();
+                      }
+                      setShowDataMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-emerald-50 flex items-center justify-between text-emerald-800 font-semibold bg-emerald-50/40"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                      <span>Unduh Laporan Excel (.xlsx)</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded-full">
+                      Excel
+                    </span>
                   </button>
 
                   <div className="border-t border-slate-100 my-1"></div>

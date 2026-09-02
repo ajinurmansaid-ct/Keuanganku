@@ -64,6 +64,7 @@ import { TransactionFormModal } from './components/TransactionFormModal';
 import { BudgetManagerModal } from './components/BudgetManagerModal';
 import { AIAdviceModal } from './components/AIAdviceModal';
 import { ResetDataModal } from './components/ResetDataModal';
+import { ExportExcelModal } from './components/ExportExcelModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 const STORAGE_KEY_PROFILES = 'pencatat_keuangan_profiles_v1';
@@ -195,6 +196,7 @@ export default function App() {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isExportExcelModalOpen, setIsExportExcelModalOpen] = useState(false);
 
   // Recurring Bills Modal States
   const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
@@ -1227,6 +1229,7 @@ export default function App() {
         onOpenDebtSection={scrollToDebt}
         onExportJSON={handleExportJSON}
         onImportJSON={handleImportJSON}
+        onOpenExportExcelModal={() => setIsExportExcelModalOpen(true)}
         onForceSyncCloud={() =>
           pushFullStateToCloud(
             profiles,
@@ -1369,6 +1372,7 @@ export default function App() {
             setIsAddModalOpen(true);
           }}
           onOpenResetModal={() => setIsResetModalOpen(true)}
+          onOpenExportExcelModal={() => setIsExportExcelModalOpen(true)}
         />
       </main>
 
@@ -1542,6 +1546,22 @@ export default function App() {
         onClose={() => setIsProfileSettingsOpen(false)}
         profiles={profiles}
         onSaveProfiles={handleSaveProfiles}
+      />
+
+      {/* Export to Excel Modal */}
+      <ExportExcelModal
+        isOpen={isExportExcelModalOpen}
+        onClose={() => setIsExportExcelModalOpen(false)}
+        selectedMonth={selectedMonth}
+        profiles={{
+          user_1: profiles.find((p) => p.id === 'user_1') || profiles[0],
+          user_2: profiles.find((p) => p.id === 'user_2') || profiles[1],
+        }}
+        transactions={transactions}
+        budgets={budgets}
+        savingsGoals={savingsGoals}
+        recurringBills={recurringBills}
+        debts={debts}
       />
     </div>
   );

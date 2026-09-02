@@ -27,7 +27,8 @@ import {
   Briefcase,
   TrendingUp,
   Gift,
-  PlusCircle
+  PlusCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import {
   formatRupiah,
@@ -45,6 +46,7 @@ interface TransactionListProps {
   onDuplicate: (tx: Transaction) => void;
   onOpenAddModal: () => void;
   onOpenResetModal?: () => void;
+  onOpenExportExcelModal?: () => void;
   profiles?: UserProfile[];
   activeViewMode?: ActiveViewMode;
 }
@@ -57,6 +59,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onDuplicate,
   onOpenAddModal,
   onOpenResetModal,
+  onOpenExportExcelModal,
   profiles = [],
   activeViewMode = 'user_1',
 }) => {
@@ -236,7 +239,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           )}
         </div>
 
-        {/* Category Select Filter */}
+        {/* Category Select Filter & Excel Export Button */}
         <div className="flex items-center gap-2">
           <span className="text-slate-400 hidden sm:inline">Kategori:</span>
           <select
@@ -251,6 +254,18 @@ export const TransactionList: React.FC<TransactionListProps> = ({
               </option>
             ))}
           </select>
+
+          {onOpenExportExcelModal && (
+            <button
+              type="button"
+              onClick={onOpenExportExcelModal}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition cursor-pointer shadow-2xs"
+              title="Unduh Data Saldo & Keuangan Lengkap ke Excel (.xlsx)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Unduh Excel</span>
+            </button>
+          )}
         </div>
       </div>
 
