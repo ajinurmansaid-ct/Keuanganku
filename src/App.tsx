@@ -1133,6 +1133,23 @@ export default function App() {
     if (updatedBillForCloud) {
       saveRecurringBillToFirestore(updatedBillForCloud);
     }
+
+    // Also remove the corresponding transaction in the current month if created
+    const matchingTx = transactions.find((t) => {
+      const isSameMonth = t.date.startsWith(selectedMonth);
+      const isExpense = t.type === 'expense';
+      const isSameProfile = (t.profileId || 'user_1') === (bill.profileId || 'user_1');
+      const isTitleMatch =
+        t.title.toLowerCase().trim() === bill.title.toLowerCase().trim() ||
+        (t.notes && t.notes.toLowerCase().includes(bill.title.toLowerCase()));
+      const isAmountMatch = Math.abs(t.amount - bill.amount) < 1;
+      return isSameMonth && isExpense && isSameProfile && (isTitleMatch || isAmountMatch);
+    });
+
+    if (matchingTx) {
+      setTransactions((prev) => prev.filter((t) => t.id !== matchingTx.id));
+      deleteTransactionFromFirestore(matchingTx.id);
+    }
   };
 
   const handlePayAllPendingBills = () => {
@@ -1280,6 +1297,7 @@ export default function App() {
           <RecurringSection
             recurringBills={displayRecurringBills}
             selectedMonth={selectedMonth}
+            transactions={displayTransactions}
             profiles={profiles}
             activeViewMode={activeViewMode}
             onOpenAddModal={() => {

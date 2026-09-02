@@ -18,7 +18,10 @@ import {
   DollarSign,
   CheckCheck,
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  Lock,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { RecurringBill, Transaction, PaymentMethod, UserProfile, ActiveViewMode } from '../types';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../data/categories';
@@ -32,6 +35,7 @@ import {
 interface RecurringSectionProps {
   recurringBills: RecurringBill[];
   selectedMonth: string;
+  transactions?: Transaction[];
   onOpenAddModal: () => void;
   onOpenEditModal: (bill: RecurringBill) => void;
   onDeleteBill: (id: string) => void;
@@ -46,6 +50,7 @@ interface RecurringSectionProps {
 export const RecurringSection: React.FC<RecurringSectionProps> = ({
   recurringBills,
   selectedMonth,
+  transactions = [],
   onOpenAddModal,
   onOpenEditModal,
   onDeleteBill,
@@ -59,18 +64,41 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({
   const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [billToDelete, setBillToDelete] = useState<RecurringBill | null>(null);
+  const [billToUnpayConfirm, setBillToUnpayConfirm] = useState<RecurringBill | null>(null);
   const [showBatchConfirm, setShowBatchConfirm] = useState(false);
 
   const profile1 = profiles.find((p) => p.id === 'user_1');
   const profile2 = profiles.find((p) => p.id === 'user_2');
+
+  // Robust check: Determine if a recurring bill is paid for selectedMonth
+  // by checking BOTH recorded paidMonths array AND matching transactions
+  const checkIsBillPaid = (bill: RecurringBill): boolean => {
+    if (bill.paidMonths && bill.paidMonths.includes(selectedMonth)) {
+      return true;
+    }
+    if (transactions && transactions.length > 0) {
+      const hasTx = transactions.some((t) => {
+        const isSameMonth = t.date.startsWith(selectedMonth);
+        const isExpense = t.type === 'expense';
+        const isSameProfile = (t.profileId || 'user_1') === (bill.profileId || 'user_1');
+        const isTitleMatch =
+          t.title.toLowerCase().trim() === bill.title.toLowerCase().trim() ||
+          (t.notes && t.notes.toLowerCase().includes(bill.title.toLowerCase()));
+        const isAmountMatch = Math.abs(t.amount - bill.amount) < 1;
+        return isSameMonth && isExpense && isSameProfile && (isTitleMatch || (isAmountMatch && t.categoryId === bill.categoryId));
+      });
+      if (hasTx) return true;
+    }
+    return false;
+  };
 
   const activeBills = recurringBills.filter((b) => b.isActive);
 
   // Statistics for selected month
   const totalMonthlyCommitment = activeBills.reduce((sum, b) => sum + b.amount, 0);
 
-  const paidBills = activeBills.filter((b) => b.paidMonths?.includes(selectedMonth));
-  const unpaidBills = activeBills.filter((b) => !b.paidMonths?.includes(selectedMonth));
+  const paidBills = activeBills.filter((b) => checkIsBillPaid(b));
+  const unpaidBills = activeBills.filter((b) => !checkIsBillPaid(b));
 
   const totalPaidAmount = paidBills.reduce((sum, b) => sum + b.amount, 0);
   const totalUnpaidAmount = unpaidBills.reduce((sum, b) => sum + b.amount, 0);
@@ -83,7 +111,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({
   // Filter items
   const displayedBills = recurringBills.filter((bill) => {
     if (filter === 'all') return true;
-    const isPaid = bill.paidMonths?.includes(selectedMonth);
+    const isPaid = checkIsBillPaid(bill);
     if (filter === 'paid') return isPaid;
     if (filter === 'unpaid') return !isPaid && bill.isActive;
     return true;
@@ -95,11 +123,11 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({
   const todayDay = new Date().getDate();
 
   const getDueStatus = (bill: RecurringBill) => {
-    const isPaid = bill.paidMonths?.includes(selectedMonth);
+    const isPaid = checkIsBillPaid(bill);
     if (isPaid) {
       return {
-        label: 'Sudah Lunas',
-        color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        label: 'Sudah Lunas (Terkunci)',
+        color: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold',
         badgeColor: 'bg-emerald-500',
         isOverdue: false,
         isToday: false,
@@ -480,16 +508,18 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({
                       <div>
                         {isPaid ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="px-2.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1">
-                              <Check className="w-3.5 h-3.5" /> Lunas
+                            <span className="px-2.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 border border-emerald-200/80 shadow-2xs">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Lunas & Terkunci</span>
                             </span>
                             <button
                               type="button"
-                              onClick={() => onUnpayBill(bill)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-[11px] transition cursor-pointer"
-                              title="Batalkan status bayar untuk bulan ini"
+                              onClick={() => setBillToUnpayConfirm(bill)}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1"
+                              title="Buka kunci dan batalkan status lunas untuk bulan ini"
                             >
-                              Batal
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              <span>Ubah</span>
                             </button>
                           </div>
                         ) : (
@@ -509,6 +539,53 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Security Confirmation Modal for Unpaying/Unlocking Paid Bill */}
+      {billToUnpayConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-100 p-6 space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-slate-900">Buka Kunci Status Tagihan?</h3>
+                <p className="text-xs text-slate-500 truncate">{billToUnpayConfirm.title}</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1.5">
+              <p className="font-semibold flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                Data pembayaran ini terkunci aman.
+              </p>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Apakah Anda yakin ingin membatalkan status Lunas untuk periode <strong>{getMonthNameIndonesian(selectedMonth)}</strong> dan mengembalikannya menjadi belum bayar?
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setBillToUnpayConfirm(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              >
+                Batal (Tetap Lunas)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUnpayBill(billToUnpayConfirm);
+                  setBillToUnpayConfirm(null);
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-xs cursor-pointer"
+              >
+                Ya, Ubah Jadi Belum Bayar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -224,6 +224,9 @@ export function subscribeToRecurringBills(callback: (bills: RecurringBill[]) => 
         if (!data.profileId) {
           data.profileId = 'user_1';
         }
+        if (!Array.isArray(data.paidMonths)) {
+          data.paidMonths = [];
+        }
         items.push(data);
       });
       items.sort((a, b) => a.dueDay - b.dueDay);
@@ -241,6 +244,7 @@ export async function saveRecurringBillToFirestore(bill: RecurringBill) {
     const dataToSave = {
       ...bill,
       profileId: bill.profileId || 'user_1',
+      paidMonths: Array.isArray(bill.paidMonths) ? bill.paidMonths : [],
     };
     await setDoc(docRef, dataToSave, { merge: true });
   } catch (err) {
@@ -355,6 +359,7 @@ export async function replaceAllRecurringBillsInFirestore(bills: RecurringBill[]
       batch.set(doc(db, COLL_RECURRING, bill.id), {
         ...bill,
         profileId: bill.profileId || 'user_1',
+        paidMonths: Array.isArray(bill.paidMonths) ? bill.paidMonths : [],
       });
     });
     await batch.commit();
